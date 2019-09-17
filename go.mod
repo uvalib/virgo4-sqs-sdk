@@ -1,4 +1,4 @@
-module github.com/uvalib/virgo4-sqs-sdk/awssqs
+module github.com/uvalib/virgo4-sqs-sdk
 
 go 1.13
 
