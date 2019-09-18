@@ -157,7 +157,7 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
 
    //fmt.Printf( "Sending: %d\n", len( batch ) )
 
-   _, err := awsi.svc.SendMessageBatch( &sqs.SendMessageBatchInput{
+   response, err := awsi.svc.SendMessageBatch( &sqs.SendMessageBatchInput{
       Entries:     batch,
       QueueUrl:    &q,
    })
@@ -169,11 +169,17 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
       return emptyOpList, err
    }
 
-   //
-   // FIXME
-   // process to determine if they all succeeded or not
-   //
+   for _, f := range response.Failed {
+      fmt.Printf( "ERROR: %s %s\n", *f.Id, *f.Message )
+      id, err := strconv.Atoi( *f.Id )
+      if err == nil && id < sz {
+         ops[ id ] = false
+      }
+   }
 
+   //for _, f := range response.Successful {
+   //   fmt.Printf( "OK: %s\n", *f.Id )
+   //}
    return ops, nil
 }
 
@@ -201,22 +207,29 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
       ops = append( ops, true )
    }
 
-   _, err := awsi.svc.DeleteMessageBatch( &sqs.DeleteMessageBatchInput{
+   response, err := awsi.svc.DeleteMessageBatch( &sqs.DeleteMessageBatchInput{
       Entries:     batch,
       QueueUrl:    &q,
    })
 
    if err != nil {
-      if strings.HasPrefix( err.Error(), malformedInputErrorPrefix ) {
+      if strings.HasPrefix( err.Error(), invalidAddressErrorPrefix ) {
          return emptyOpList, BadQueueHandleError
       }
       return emptyOpList, err
    }
 
-   //
-   // FIXME
-   // process to determine if they all succeeded or not
-   //
+   for _, f := range response.Failed {
+      fmt.Printf( "ERROR: %s %s\n", *f.Id, *f.Message )
+      id, err := strconv.Atoi( *f.Id )
+      if err == nil && id < sz {
+         ops[ id ] = false
+      }
+   }
+
+   //for _, f := range response.Successful {
+   //   fmt.Printf( "OK: %s\n", *f.Id )
+   //}
 
    return ops, nil
 }

@@ -1,6 +1,7 @@
 GOCMD=go
 GOTEST=$(GOCMD) test
-PACKAGE=github.com/uvalib/virgo4-sqs-sdk
+PACKAGENAME=virgo4-sqs-sdk
+PACKAGE=github.com/uvalib/$(PACKAGENAME)
 
 build: test
 
