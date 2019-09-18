@@ -1,4 +1,4 @@
-package awssqs
+package main
 
 import (
    "fmt"
@@ -11,6 +11,9 @@ var MAX_SQS_BLOCK_COUNT = 10
 // the maximum size of a block
 var MAX_SQS_BLOCK_SIZE = 262144
 
+// the maximum size of a message
+var MAX_SQS_MESSAGE_SIZE = MAX_SQS_BLOCK_SIZE
+
 // the maximum queue wait time (in seconds)
 var MAX_SQS_WAIT_TIME = 20
 
@@ -18,6 +21,8 @@ var MAX_SQS_WAIT_TIME = 20
 var BlockCountTooLargeError = fmt.Errorf( "Block count is too large. Must be %d or less", MAX_SQS_BLOCK_COUNT )
 var BlockTooLargeError = fmt.Errorf( "Block size is too large. Must be %d or less", MAX_SQS_BLOCK_SIZE )
 var WaitTooLargeError = fmt.Errorf( "Wait time is too large. Must be %d or less", MAX_SQS_WAIT_TIME )
+var BadQueueNameError = fmt.Errorf( "Queue name does not exist" )
+var BadQueueHandleError = fmt.Errorf( "Queue handle is bad" )
 
 // simplifications
 type QueueHandle  string
@@ -52,11 +57,11 @@ type AwsSqsConfig struct {
 }
 
 // Initialize our AWS_SQS connection
-func NewAwsSqs( AwsSqsConfig ) (AWS_SQS, error ) {
+func NewAwsSqs( config AwsSqsConfig ) (AWS_SQS, error ) {
 
    // mock the implementation here if necessary
 
-   aws, err := newAwsSqs( )
+   aws, err := newAwsSqs( config )
    return aws, err
 }
 

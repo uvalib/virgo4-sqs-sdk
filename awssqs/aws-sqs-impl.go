@@ -1,7 +1,8 @@
-package awssqs
+package main
 
 import (
    "strconv"
+   "strings"
    "time"
 
    "github.com/aws/aws-sdk-go/aws"
@@ -12,13 +13,18 @@ import (
 var emptyOpList = make( []OpStatus, 0 )
 var emptyMessageList = make( []Message, 0 )
 
+// text for a specific error cases
+var malformedInputErrorPrefix = "MalformedInput"
+var invalidAddressErrorPrefix = "InvalidAddress"
+
 // this is our implementation
 type awsSqsImpl struct {
-   svc       * sqs.SQS
+   config    AwsSqsConfig
+   svc      * sqs.SQS
 }
 
 // Initialize our AWS_SQS abstraction
-func newAwsSqs( ) (AWS_SQS, error ) {
+func newAwsSqs( config AwsSqsConfig ) (AWS_SQS, error ) {
 
    sess, err := session.NewSession( )
    if err != nil {
@@ -27,7 +33,7 @@ func newAwsSqs( ) (AWS_SQS, error ) {
 
    svc := sqs.New( sess )
 
-   return &awsSqsImpl{svc }, nil
+   return &awsSqsImpl{config, svc }, nil
 }
 
 func ( awsi *awsSqsImpl) QueueHandle( queueName string ) ( QueueHandle, error ) {
@@ -38,6 +44,9 @@ func ( awsi *awsSqsImpl) QueueHandle( queueName string ) ( QueueHandle, error ) 
    })
 
    if err != nil {
+      if strings.HasPrefix( err.Error(), sqs.ErrCodeQueueDoesNotExist ) {
+         return "", BadQueueNameError
+      }
       return "", err
    }
 
@@ -67,10 +76,13 @@ func ( awsi *awsSqsImpl) BatchMessageGet( queue QueueHandle, maxMessages uint, w
       },
       QueueUrl:            &q,
       MaxNumberOfMessages: aws.Int64( int64( maxMessages ) ),
-      WaitTimeSeconds:     aws.Int64( int64( waitTime ) ),
+      WaitTimeSeconds:     aws.Int64( int64( waitTime.Seconds() ) ),
    })
 
    if err != nil {
+      if strings.HasPrefix( err.Error(), invalidAddressErrorPrefix ) {
+         return emptyMessageList, BadQueueHandleError
+      }
       return emptyMessageList, err
    }
 
@@ -93,15 +105,34 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
    // early exit if no messages provided
    sz := len( messages )
    if sz == 0 {
+      //fmt.Printf( "Message queue is empty\n" )
       return emptyOpList, nil
    }
 
    // ensure the block size is not too large
    if sz > MAX_SQS_BLOCK_COUNT {
+      //fmt.Printf( "Message block too large\n" )
       return emptyOpList, BlockCountTooLargeError
    }
 
+   // calculate the total block size and the number of messages that are larger than the maximum
+   totalSize := 0
+   oversizeCount := 0
+   for _, m := range messages {
+      sz := len( m.Payload )
+      if sz > MAX_SQS_MESSAGE_SIZE {
+         oversizeCount++
+      }
+      totalSize += sz
+   }
+
+   // if the total block size is
+   if totalSize > MAX_SQS_BLOCK_SIZE {
+      return emptyOpList, BlockTooLargeError
+   }
+
    q := string( queue )
+   //fmt.Printf( "Queue: %s\n", q )
 
    batch := make( []*sqs.SendMessageBatchRequestEntry, 0, sz )
    ops := make( []OpStatus, 0, sz )
@@ -111,12 +142,17 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
       ops = append( ops, true )
    }
 
+   //fmt.Printf( "Sending: %d\n", len( batch ) )
+
    _, err := awsi.svc.SendMessageBatch( &sqs.SendMessageBatchInput{
       Entries:     batch,
       QueueUrl:    &q,
    })
 
    if err != nil {
+      if strings.HasPrefix( err.Error(), invalidAddressErrorPrefix ) {
+         return emptyOpList, BadQueueHandleError
+      }
       return emptyOpList, err
    }
 
@@ -157,14 +193,17 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
       QueueUrl:    &q,
    })
 
+   if err != nil {
+      if strings.HasPrefix( err.Error(), malformedInputErrorPrefix ) {
+         return emptyOpList, BadQueueHandleError
+      }
+      return emptyOpList, err
+   }
+
    //
    // FIXME
    // process to determine if they all succeeded or not
    //
-   
-   if err != nil {
-      return emptyOpList, err
-   }
 
    return ops, nil
 }
@@ -175,6 +214,7 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
 
 func constructSend( message Message, index int ) * sqs.SendMessageBatchRequestEntry {
 
+   //fmt.Printf( "%+v\n", message )
    return &sqs.SendMessageBatchRequestEntry{
       MessageAttributes: awsAttribsFromMessageAttribs( message.Attribs ),
       MessageBody:       aws.String( string( message.Payload ) ),
