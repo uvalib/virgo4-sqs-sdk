@@ -1,6 +1,7 @@
 package main
 
 import (
+   "fmt"
    "strconv"
    "strings"
    "time"
@@ -105,17 +106,15 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
    // early exit if no messages provided
    sz := len( messages )
    if sz == 0 {
-      //fmt.Printf( "Message queue is empty\n" )
       return emptyOpList, nil
    }
 
    // ensure the block size is not too large
    if sz > MAX_SQS_BLOCK_COUNT {
-      //fmt.Printf( "Message block too large\n" )
       return emptyOpList, BlockCountTooLargeError
    }
 
-   // calculate the total block size and the number of messages that are larger than the maximum
+   // calculate the total block size and the number of messages that are larger than the maximum message size
    totalSize := 0
    oversizeCount := 0
    for _, m := range messages {
@@ -126,9 +125,23 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
       totalSize += sz
    }
 
-   // if the total block size is
+   // if the total block size is too large and we do not have any messages that are too large then we can split
+   // the block in half and handle each one individually
    if totalSize > MAX_SQS_BLOCK_SIZE {
-      return emptyOpList, BlockTooLargeError
+      if oversizeCount == 0 {
+         half := sz / 2
+         fmt.Printf( "Splitting block at %d\n", half )
+         op1, err1 := awsi.BatchMessagePut( queue, messages[ 0:half ] )
+         op2, err2 := awsi.BatchMessagePut( queue, messages[ half: ] )
+         copy( op1, op2 )
+         if err1 != nil {
+            return op1, err1
+         } else {
+            return op1, err2
+         }
+      } else {
+         return emptyOpList, MessageTooLargeError
+      }
    }
 
    q := string( queue )

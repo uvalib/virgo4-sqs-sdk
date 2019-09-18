@@ -20,6 +20,7 @@ var MAX_SQS_WAIT_TIME = 20
 // Errors
 var BlockCountTooLargeError = fmt.Errorf( "Block count is too large. Must be %d or less", MAX_SQS_BLOCK_COUNT )
 var BlockTooLargeError = fmt.Errorf( "Block size is too large. Must be %d or less", MAX_SQS_BLOCK_SIZE )
+var MessageTooLargeError = fmt.Errorf( "Message size is too large. Must be %d or less", MAX_SQS_MESSAGE_SIZE )
 var WaitTooLargeError = fmt.Errorf( "Wait time is too large. Must be %d or less", MAX_SQS_WAIT_TIME )
 var BadQueueNameError = fmt.Errorf( "Queue name does not exist" )
 var BadQueueHandleError = fmt.Errorf( "Queue handle is bad" )
