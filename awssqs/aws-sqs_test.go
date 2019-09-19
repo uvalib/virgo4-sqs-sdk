@@ -504,8 +504,8 @@ func verifyMessages( t *testing.T, messages [] Message ) {
 func extractAttribute( attribs Attributes, name string ) string {
    
    for _, a := range attribs {
-      if a.name == name {
-         return a.value
+      if a.Name == name {
+         return a.Value
       }
    }
    return ""

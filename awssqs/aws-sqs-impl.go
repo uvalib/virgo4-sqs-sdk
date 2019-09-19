@@ -271,7 +271,7 @@ func messageFromAwsStruct( awsMessage sqs.Message ) Message {
 func messageAttribsFromAwsStrict( attribs map[string] * sqs.MessageAttributeValue  ) Attributes {
    attributes := make( []Attribute, 0, len( attribs ) )
    for k, v := range attribs {
-      attributes = append( attributes, Attribute{ name: k, value: *v.StringValue })
+      attributes = append( attributes, Attribute{ Name: k, Value: *v.StringValue })
    }
    a := Attributes( attributes )
    return a
@@ -280,9 +280,9 @@ func messageAttribsFromAwsStrict( attribs map[string] * sqs.MessageAttributeValu
 func awsAttribsFromMessageAttribs( attribs Attributes ) map[string] * sqs.MessageAttributeValue {
    attributes := make( map[string] * sqs.MessageAttributeValue )
    for _, a := range attribs {
-      attributes[ a.name ] = &sqs.MessageAttributeValue{
+      attributes[ a.Name ] = &sqs.MessageAttributeValue{
          DataType: aws.String("String" ),
-         StringValue: aws.String( a.value ),
+         StringValue: aws.String( a.Value ),
       }
    }
    return attributes

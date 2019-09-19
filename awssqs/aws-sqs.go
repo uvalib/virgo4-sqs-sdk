@@ -33,8 +33,8 @@ type OpStatus     bool
 
 // just a KV pair
 type Attribute struct {
-   name  string
-   value string
+   Name  string
+   Value string
 }
 
 type Attributes []Attribute
