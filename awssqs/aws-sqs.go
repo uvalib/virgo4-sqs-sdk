@@ -6,16 +6,16 @@ import (
 )
 
 // the maximum number of messages in a block
-var MAX_SQS_BLOCK_COUNT = 10
+var MAX_SQS_BLOCK_COUNT = uint( 10 )
 
 // the maximum size of a block
-var MAX_SQS_BLOCK_SIZE = 262144
+var MAX_SQS_BLOCK_SIZE = uint( 262144 )
 
 // the maximum size of a message
 var MAX_SQS_MESSAGE_SIZE = MAX_SQS_BLOCK_SIZE
 
 // the maximum queue wait time (in seconds)
-var MAX_SQS_WAIT_TIME = 20
+var MAX_SQS_WAIT_TIME = uint( 20 )
 
 // Errors
 var BlockCountTooLargeError = fmt.Errorf( "Block count is too large. Must be %d or less", MAX_SQS_BLOCK_COUNT )
@@ -24,6 +24,7 @@ var MessageTooLargeError = fmt.Errorf( "Message size is too large. Must be %d or
 var WaitTooLargeError = fmt.Errorf( "Wait time is too large. Must be %d or less", MAX_SQS_WAIT_TIME )
 var BadQueueNameError = fmt.Errorf( "Queue name does not exist" )
 var BadQueueHandleError = fmt.Errorf( "Queue handle is bad" )
+var OneOrMoreOperationsUnsuccessfulError = fmt.Errorf( "One or more operations were not successful" )
 
 // simplifications
 type QueueHandle  string

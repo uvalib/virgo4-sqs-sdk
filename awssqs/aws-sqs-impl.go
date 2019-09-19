@@ -57,7 +57,7 @@ func ( awsi *awsSqsImpl) QueueHandle( queueName string ) ( QueueHandle, error ) 
 func ( awsi *awsSqsImpl) BatchMessageGet( queue QueueHandle, maxMessages uint, waitTime time.Duration ) ( []Message, error ) {
 
    // ensure the block size is not too large
-   if int( maxMessages ) > MAX_SQS_BLOCK_COUNT {
+   if maxMessages > MAX_SQS_BLOCK_COUNT {
       return emptyMessageList, BlockCountTooLargeError
    }
 
@@ -110,15 +110,15 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
    }
 
    // ensure the block size is not too large
-   if sz > MAX_SQS_BLOCK_COUNT {
+   if uint( sz ) > MAX_SQS_BLOCK_COUNT {
       return emptyOpList, BlockCountTooLargeError
    }
 
    // calculate the total block size and the number of messages that are larger than the maximum message size
-   totalSize := 0
+   var totalSize uint = 0
    oversizeCount := 0
    for _, m := range messages {
-      sz := len( m.Payload )
+      var sz uint = uint( len( m.Payload ) )
       if sz > MAX_SQS_MESSAGE_SIZE {
          oversizeCount++
       }
@@ -171,22 +171,24 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
 
    for _, f := range response.Failed {
       fmt.Printf( "ERROR: %s %s\n", *f.Id, *f.Message )
-      id, err := strconv.Atoi( *f.Id )
-      if err == nil && id < sz {
+      id, converr := strconv.Atoi( *f.Id )
+      if converr == nil && id < sz {
          ops[ id ] = false
+         err = OneOrMoreOperationsUnsuccessfulError
       }
    }
 
    //for _, f := range response.Successful {
    //   fmt.Printf( "OK: %s\n", *f.Id )
    //}
-   return ops, nil
+
+   return ops, err
 }
 
 func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Message ) ( []OpStatus, error ) {
 
    // early exit if no messages provided
-   sz := len( messages )
+   var sz uint = uint( len( messages ) )
    if sz == 0 {
       return emptyOpList, nil
    }
@@ -221,9 +223,10 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
 
    for _, f := range response.Failed {
       fmt.Printf( "ERROR: %s %s\n", *f.Id, *f.Message )
-      id, err := strconv.Atoi( *f.Id )
-      if err == nil && id < sz {
+      id, converr := strconv.Atoi( *f.Id )
+      if converr == nil && uint( id ) < sz {
          ops[ id ] = false
+         err = OneOrMoreOperationsUnsuccessfulError
       }
    }
 
@@ -231,7 +234,7 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
    //   fmt.Printf( "OK: %s\n", *f.Id )
    //}
 
-   return ops, nil
+   return ops, err
 }
 
 //

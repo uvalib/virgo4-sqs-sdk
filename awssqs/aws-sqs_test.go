@@ -1,7 +1,9 @@
 package main
 
 import (
+   "crypto/md5"
    "fmt"
+   "math/rand"
    "testing"
    "time"
 )
@@ -13,6 +15,11 @@ var badDeleteHandle = DeleteHandle( "blablabla" )
 var goodWaitTime = 15 * time.Second
 var badWaitTime = 99 * time.Second
 var zeroWaitTime = 0 * time.Second
+
+// used when generating random messages
+var smallMessageSize = uint( 37628 )
+var largeMessageSize = MAX_SQS_MESSAGE_SIZE * 2
+var characters = []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 //
 // General behavior tests
@@ -30,10 +37,32 @@ func TestCorrectMessageCount(t *testing.T) {
    }
 
    clearQueue( t, awssqs, queueHandle )
+
+   count := uint( rand.Intn( int( MAX_SQS_BLOCK_COUNT ) ) )
+   messages := makeStandardMessages( count )
+   ops, err := awssqs.BatchMessagePut( queueHandle, messages )
+   if err != nil {
+      t.Fatalf("%t\n", err)
+   }
+   if allOperationsOK( ops ) == false {
+      t.Fatalf("One or more put operations reported failed incorrectly\n")
+   }
+
+   messages, err = awssqs.BatchMessageGet( queueHandle, MAX_SQS_BLOCK_COUNT, goodWaitTime )
+   if err != nil {
+      t.Fatalf("%t\n", err)
+   }
+
+   if uint(len( messages )) != count {
+      t.Fatalf("Received a different number of messages than expected (expected: %d, received: %d)\n", count, len( messages ) )
+   }
 }
 
 func TestCorrectSmallMessageContent(t *testing.T) {
 
+   // seed the RNG because we use it when creating messages
+   rand.Seed(time.Now().UnixNano())
+
    awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
    if err != nil {
       t.Fatalf("%t\n", err)
@@ -45,10 +74,34 @@ func TestCorrectSmallMessageContent(t *testing.T) {
    }
 
    clearQueue( t, awssqs, queueHandle )
+
+   count := uint( rand.Intn( int( MAX_SQS_BLOCK_COUNT ) ) )
+   messages := makeSmallMessages( count )
+   ops, err := awssqs.BatchMessagePut( queueHandle, messages )
+   if err != nil {
+      t.Fatalf("%t\n", err)
+   }
+   if allOperationsOK( ops ) == false {
+      t.Fatalf("One or more put operations reported failed incorrectly\n")
+   }
+
+   messages, err = awssqs.BatchMessageGet( queueHandle, MAX_SQS_BLOCK_COUNT, goodWaitTime )
+   if err != nil {
+      t.Fatalf("%t\n", err)
+   }
+
+   if uint(len( messages )) != count {
+      t.Fatalf("Received a different number of messages than expected (expected: %d, received: %d)\n", count, len( messages ) )
+   }
+
+   verifyMessages( t, messages )
 }
 
 func TestCorrectLargeMessageContent(t *testing.T) {
 
+   // seed the RNG because we use it when creating messages
+   rand.Seed(time.Now().UnixNano())
+
    awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
    if err != nil {
       t.Fatalf("%t\n", err)
@@ -60,6 +113,27 @@ func TestCorrectLargeMessageContent(t *testing.T) {
    }
 
    clearQueue( t, awssqs, queueHandle )
+
+   count := uint( rand.Intn( int( MAX_SQS_BLOCK_COUNT ) ) )
+   messages := makeLargeMessages( count )
+   ops, err := awssqs.BatchMessagePut( queueHandle, messages )
+   if err != nil {
+      t.Fatalf("%t\n", err)
+   }
+   if allOperationsOK( ops ) == false {
+      t.Fatalf("One or more put operations reported failed incorrectly\n")
+   }
+
+   messages, err = awssqs.BatchMessageGet( queueHandle, MAX_SQS_BLOCK_COUNT, goodWaitTime )
+   if err != nil {
+      t.Fatalf("%t\n", err)
+   }
+
+   if uint( len( messages ) ) != count {
+      t.Fatalf("Received a different number of messages than expected (expected: %d, received: %d)\n", count, len( messages ) )
+   }
+
+   verifyMessages( t, messages )
 }
 
 //
@@ -129,7 +203,7 @@ func TestBatchMessageGetBadQueueHandle(t *testing.T) {
       t.Fatalf("%t\n", err)
    }
 
-   _, err = awssqs.BatchMessageGet( badQueueHandle, uint( MAX_SQS_BLOCK_COUNT ), goodWaitTime )
+   _, err = awssqs.BatchMessageGet( badQueueHandle, MAX_SQS_BLOCK_COUNT, goodWaitTime )
    if err != BadQueueHandleError {
       t.Fatalf("%t\n", err)
    }
@@ -147,7 +221,7 @@ func TestBatchMessageGetBadBlockSize(t *testing.T) {
       t.Fatalf("%t\n", err)
    }
 
-   _, err = awssqs.BatchMessageGet( queueHandle, uint( MAX_SQS_BLOCK_COUNT + 1 ), goodWaitTime )
+   _, err = awssqs.BatchMessageGet( queueHandle, MAX_SQS_BLOCK_COUNT + 1, goodWaitTime )
    if err != BlockCountTooLargeError {
       t.Fatalf("%t\n", err)
    }
@@ -165,7 +239,7 @@ func TestBatchMessageGetBadWaitTime(t *testing.T) {
       t.Fatalf("%t\n", err)
    }
 
-   _, err = awssqs.BatchMessageGet( queueHandle, uint( MAX_SQS_BLOCK_COUNT ), badWaitTime )
+   _, err = awssqs.BatchMessageGet( queueHandle, MAX_SQS_BLOCK_COUNT, badWaitTime )
    if err != WaitTooLargeError {
       t.Fatalf("%t\n", err)
    }
@@ -187,14 +261,14 @@ func TestBatchMessagePutHappyDay( t *testing.T ) {
       t.Fatalf("%t\n", err)
    }
 
-   count := 1
-   messages := makeMessages( count )
+   count := uint( 1 )
+   messages := makeStandardMessages( count )
    ops, err := awssqs.BatchMessagePut( queueHandle, messages )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
    if allOperationsOK( ops ) == false {
-      t.Fatalf("One or more put operations failed\n")
+      t.Fatalf("One or more put operations reported failed incorrectly\n")
    }
 }
 
@@ -205,14 +279,14 @@ func TestBatchMessagePutBadQueueHandle( t *testing.T ) {
       t.Fatalf("%t\n", err)
    }
 
-   count := 1
-   messages := makeMessages( count )
+   count := uint( 1 )
+   messages := makeStandardMessages( count )
    ops, err := awssqs.BatchMessagePut( badQueueHandle, messages )
    if err != BadQueueHandleError {
       t.Fatalf("%t\n", err)
    }
    if allOperationsOK( ops ) == false {
-      t.Fatalf("One or more put operations failed\n")
+      t.Fatalf("One or more put operations reported failed incorrectly\n")
    }
 }
 
@@ -229,13 +303,13 @@ func TestBatchMessagePutBadBlockCount( t *testing.T ) {
    }
 
    count := MAX_SQS_BLOCK_COUNT + 1
-   messages := makeMessages( count )
+   messages := makeStandardMessages( count )
    ops, err := awssqs.BatchMessagePut( queueHandle, messages )
    if err != BlockCountTooLargeError {
       t.Fatalf("%t\n", err)
    }
    if allOperationsOK( ops ) == false {
-      t.Fatalf("One or more put operations failed\n")
+      t.Fatalf("One or more put operations reported failed incorrectly\n")
    }
 }
 
@@ -255,14 +329,14 @@ func TestBatchMessageDeleteHappyDay( t *testing.T ) {
       t.Fatalf("%t\n", err)
    }
 
-   count := 1
-   messages := makeMessages( count )
+   count := uint( 1 )
+   messages := makeStandardMessages( count )
    ops, err := awssqs.BatchMessagePut( queueHandle, messages )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
    if allOperationsOK( ops ) == false {
-      t.Fatalf("One or more put operations failed\n")
+      t.Fatalf("One or more put operations reported failed unexpectedly\n")
    }
 
    messages, err = awssqs.BatchMessageGet( queueHandle, 1, goodWaitTime )
@@ -275,7 +349,7 @@ func TestBatchMessageDeleteHappyDay( t *testing.T ) {
       t.Fatalf("%t\n", err)
    }
    if allOperationsOK( ops ) == false {
-      t.Fatalf("One or more delete operations failed\n")
+      t.Fatalf("One or more delete operations reported failed unexpectedly\n")
    }
 }
 
@@ -286,8 +360,8 @@ func TestBatchMessageDeleteBadQueueHandle( t *testing.T ) {
       t.Fatalf("%t\n", err)
    }
 
-   count := 1
-   messages := makeMessages( count )
+   count := uint( 1 )
+   messages := makeStandardMessages( count )
    _, err = awssqs.BatchMessageDelete( badQueueHandle, messages )
    if err != BadQueueHandleError {
       t.Fatalf("%t\n", err)
@@ -307,7 +381,7 @@ func TestBatchMessageDeleteBadBlockCount( t *testing.T ) {
    }
 
    count := MAX_SQS_BLOCK_COUNT + 1
-   messages := makeMessages( count )
+   messages := makeStandardMessages( count )
    _, err = awssqs.BatchMessageDelete( queueHandle, messages )
    if err != BlockCountTooLargeError {
       t.Fatalf("%t\n", err)
@@ -326,16 +400,16 @@ func TestBatchMessageDeleteBadDeleteHandle( t *testing.T ) {
       t.Fatalf("%t\n", err)
    }
 
-   count := 1
-   messages := makeMessages( count )
+   count := uint( 1 )
+   messages := makeStandardMessages( count )
    messages[ 0 ].DeleteHandle = badDeleteHandle
 
    ops, err := awssqs.BatchMessageDelete( queueHandle, messages )
-   if err != nil {
+   if err != OneOrMoreOperationsUnsuccessfulError {
       t.Fatalf("%t\n", err)
    }
    if ops[ 0 ] == true {
-      t.Fatalf("Delete operation succeeded unexpectidly\n")
+      t.Fatalf("Delete operation reported success incorrectly\n")
    }
 }
 
@@ -345,17 +419,96 @@ func TestBatchMessageDeleteBadDeleteHandle( t *testing.T ) {
 
 func clearQueue( t *testing.T, awssqs AWS_SQS, handle QueueHandle ) {
 
+   for {
+      messages, err := awssqs.BatchMessageGet(handle, MAX_SQS_BLOCK_COUNT, zeroWaitTime)
+      if err != nil {
+         t.Fatalf("%t\n", err)
+      }
+      if len( messages ) == 0 {
+         break
+      }
+   }
 }
 
-func makeMessages( count int ) [] Message {
+func makeStandardMessages( count uint ) [] Message {
 
    messages := make( []Message, 0, count )
-   attributes := make( []Attribute, 0, 1 )
-   attributes = append( attributes, Attribute{ "type", "text" } )
-   for i := 0;  i < count; i++ {
-      messages = append( messages, Message{ Attribs: attributes, Payload: Payload( fmt.Sprintf( "this is message %d", i ) )} )
+   i := uint( 0 )
+   for i < count {
+      messages = append( messages, makeStandardMessage( ) )
+      i++
    }
    return messages
+}
+
+func makeSmallMessages( count uint ) [] Message {
+
+   messages := make( []Message, 0, count )
+   i := uint( 0 )
+   for i < count {
+      messages = append( messages, makeSmallMessage( ) )
+      i++
+   }
+   return messages
+}
+
+func makeLargeMessages( count uint ) [] Message {
+
+   messages := make( []Message, 0, count )
+   i := uint( 0 )
+   for i < count {
+      messages = append( messages, makeLargeMessage( ) )
+      i++
+   }
+   return messages
+}
+
+func makeStandardMessage( ) Message {
+
+   attributes := make( []Attribute, 0, 1 )
+   attributes = append( attributes, Attribute{ "type", "text" } )
+   return Message{ Attribs: attributes, Payload: Payload( fmt.Sprintf( "this is message at %s", time.Now( ) ) )}
+}
+
+func makeSmallMessage( ) Message {
+
+   payload := randomString( smallMessageSize )
+   hash := fmt.Sprintf("%x", md5.Sum([]byte( payload ) ) )
+   attributes := make( []Attribute, 0, 2 )
+   attributes = append( attributes, Attribute{ "type", "text" } )
+   attributes = append( attributes, Attribute{ "hash", hash } )
+   return Message{ Attribs: attributes, Payload: Payload( payload ) }
+}
+
+func makeLargeMessage( ) Message {
+
+   payload := randomString( largeMessageSize )
+   hash := fmt.Sprintf("%x", md5.Sum([]byte( payload ) ) )
+   attributes := make( []Attribute, 0, 2 )
+   attributes = append( attributes, Attribute{ "type", "text" } )
+   attributes = append( attributes, Attribute{ "hash", hash } )
+   return Message{ Attribs: attributes, Payload: Payload( payload ) }
+}
+
+func verifyMessages( t *testing.T, messages [] Message ) {
+
+   for _, m := range messages {
+      reportedHash := extractAttribute( m.Attribs, "hash" )
+      actualHash := fmt.Sprintf("%x", md5.Sum([]byte( m.Payload ) ) )
+      if actualHash != reportedHash {
+         t.Fatalf("Message signatures do not match (expected: %s, actual %s)\n", reportedHash, actualHash )
+      }
+   }
+}
+
+func extractAttribute( attribs Attributes, name string ) string {
+   
+   for _, a := range attribs {
+      if a.name == name {
+         return a.value
+      }
+   }
+   return ""
 }
 
 func allOperationsOK( ops []OpStatus ) bool {
@@ -366,6 +519,16 @@ func allOperationsOK( ops []OpStatus ) bool {
    }
    return true
 }
+
+func randomString( size uint ) string {
+
+   b := make([]rune, size )
+   for i := range b {
+      b[i] = characters[rand.Intn(len(characters))]
+   }
+   return string(b)
+}
+
 
 //
 // end of file
