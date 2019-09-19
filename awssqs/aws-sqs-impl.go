@@ -18,6 +18,8 @@ var emptyMessageList = make( []Message, 0 )
 var malformedInputErrorPrefix = "MalformedInput"
 var invalidAddressErrorPrefix = "InvalidAddress"
 
+var warnIfRequestTakesLonger = int64( 100 )
+
 // this is our implementation
 type awsSqsImpl struct {
    config    AwsSqsConfig
@@ -68,6 +70,7 @@ func ( awsi *awsSqsImpl) BatchMessageGet( queue QueueHandle, maxMessages uint, w
 
    q := string( queue )
 
+   start := time.Now( )
    result, err := awsi.svc.ReceiveMessage( &sqs.ReceiveMessageInput{
       //AttributeNames: []*string{
       //	aws.String( sqs.QueueAttributeNameAll ),
@@ -79,6 +82,7 @@ func ( awsi *awsSqsImpl) BatchMessageGet( queue QueueHandle, maxMessages uint, w
       MaxNumberOfMessages: aws.Int64( int64( maxMessages ) ),
       WaitTimeSeconds:     aws.Int64( int64( waitTime.Seconds() ) ),
    })
+   elapsed := int64( time.Since( start ) / time.Millisecond)
 
    if err != nil {
       if strings.HasPrefix( err.Error(), invalidAddressErrorPrefix ) {
@@ -92,6 +96,9 @@ func ( awsi *awsSqsImpl) BatchMessageGet( queue QueueHandle, maxMessages uint, w
    if sz == 0 {
       return emptyMessageList, nil
    }
+
+   // we want to warn if the receive took a long time (and yielded messages)
+   warnIfSlow( elapsed, "ReceiveMessage" )
 
    messages := make( []Message, 0, sz )
    for _, m := range result.Messages {
@@ -130,7 +137,7 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
    if totalSize > MAX_SQS_BLOCK_SIZE {
       if oversizeCount == 0 {
          half := sz / 2
-         fmt.Printf( "Splitting block at %d\n", half )
+         fmt.Printf( "WARNING: blocksize too large, splitting at %d\n", half )
          op1, err1 := awsi.BatchMessagePut( queue, messages[ 0:half ] )
          op2, err2 := awsi.BatchMessagePut( queue, messages[ half: ] )
          copy( op1, op2 )
@@ -145,7 +152,6 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
    }
 
    q := string( queue )
-   //fmt.Printf( "Queue: %s\n", q )
 
    batch := make( []*sqs.SendMessageBatchRequestEntry, 0, sz )
    ops := make( []OpStatus, 0, sz )
@@ -155,12 +161,15 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
       ops = append( ops, true )
    }
 
-   //fmt.Printf( "Sending: %d\n", len( batch ) )
-
+   start := time.Now( )
    response, err := awsi.svc.SendMessageBatch( &sqs.SendMessageBatchInput{
       Entries:     batch,
       QueueUrl:    &q,
    })
+   elapsed := int64( time.Since( start ) / time.Millisecond)
+
+   // we want to warn if the receive took a long time
+   warnIfSlow( elapsed, "SendMessageBatch" )
 
    if err != nil {
       if strings.HasPrefix( err.Error(), invalidAddressErrorPrefix ) {
@@ -209,10 +218,15 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
       ops = append( ops, true )
    }
 
+   start := time.Now( )
    response, err := awsi.svc.DeleteMessageBatch( &sqs.DeleteMessageBatchInput{
       Entries:     batch,
       QueueUrl:    &q,
    })
+   elapsed := int64( time.Since( start ) / time.Millisecond)
+
+   // we want to warn if the receive took a long time
+   warnIfSlow( elapsed, "DeleteMessageBatch" )
 
    if err != nil {
       if strings.HasPrefix( err.Error(), invalidAddressErrorPrefix ) {
@@ -243,7 +257,6 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
 
 func constructSend( message Message, index int ) * sqs.SendMessageBatchRequestEntry {
 
-   //fmt.Printf( "%+v\n", message )
    return &sqs.SendMessageBatchRequestEntry{
       MessageAttributes: awsAttribsFromMessageAttribs( message.Attribs ),
       MessageBody:       aws.String( string( message.Payload ) ),
@@ -286,6 +299,13 @@ func awsAttribsFromMessageAttribs( attribs Attributes ) map[string] * sqs.Messag
       }
    }
    return attributes
+}
+
+func warnIfSlow( elapsed int64, prefix string ) {
+
+   if elapsed >= warnIfRequestTakesLonger {
+      fmt.Printf("WARNING: %s elapsed %d ms\n", prefix, elapsed)
+   }
 }
 
 //
