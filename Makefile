@@ -1,9 +1,14 @@
 GOCMD=go
 GOTEST=$(GOCMD) test
-PACKAGENAME=virgo4-sqs-sdk
-PACKAGE=github.com/uvalib/$(PACKAGENAME)
+GOGET=$(GOCMD) get
+GOMOD=$(GOCMD) mod
+PACKAGENAME=awssqs
 
 build: test
 
 test:
-	$(GOTEST) -v $(PACKAGE)/...
+	cd $(PACKAGENAME); $(GOTEST) -v
+
+deps:
+	cd $(PACKAGENAME); $(GOGET) -u
+	cd $(PACKAGENAME); $(GOMOD) tidy
