@@ -161,32 +161,21 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
       ops = append( ops, true )
    }
 
-   var response * sqs.SendMessageBatchOutput
-   var err error
-   retryCount := 0
+   start := time.Now( )
+   response, err := awsi.svc.SendMessageBatch( &sqs.SendMessageBatchInput{
+      Entries:     batch,
+      QueueUrl:    &q,
+   })
+   elapsed := int64( time.Since( start ) / time.Millisecond)
 
-   for {
-      start := time.Now()
-      response, err = awsi.svc.SendMessageBatch(&sqs.SendMessageBatchInput{
-         Entries:  batch,
-         QueueUrl: &q,
-      })
-      elapsed := int64(time.Since(start) / time.Millisecond)
+   // we want to warn if the receive took a long time
+   warnIfSlow( elapsed, "SendMessageBatch" )
 
-      if err == nil {
-         // we want to warn if the receive took a long time
-         warnIfSlow(elapsed, "SendMessageBatch")
-
-         break
-      } else {
-         if strings.HasPrefix(err.Error(), invalidAddressErrorPrefix) {
-            return emptyOpList, BadQueueHandleError
-         }
-         if canRetry( retryCount, err ) == false {
-            return emptyOpList, err
-         }
-         retryCount++
+   if err != nil {
+      if strings.HasPrefix( err.Error(), invalidAddressErrorPrefix ) {
+         return emptyOpList, BadQueueHandleError
       }
+      return emptyOpList, err
    }
 
    for _, f := range response.Failed {
@@ -317,16 +306,6 @@ func warnIfSlow( elapsed int64, prefix string ) {
    if elapsed >= warnIfRequestTakesLonger {
       log.Printf("WARNING: %s elapsed %d ms", prefix, elapsed)
    }
-}
-
-func canRetry( count int, err error ) bool {
-
-   if count < 3 {
-      log.Printf("WARNING: retry %d (%s)", count + 1, err )
-      return true
-   }
-   log.Printf("WARNING: no more retrys" )
-   return false
 }
 
 //
