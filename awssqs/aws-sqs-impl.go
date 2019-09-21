@@ -1,7 +1,7 @@
 package awssqs
 
 import (
-   "fmt"
+   "log"
    "strconv"
    "strings"
    "time"
@@ -18,7 +18,7 @@ var emptyMessageList = make( []Message, 0 )
 var malformedInputErrorPrefix = "MalformedInput"
 var invalidAddressErrorPrefix = "InvalidAddress"
 
-var warnIfRequestTakesLonger = int64( 100 )
+var warnIfRequestTakesLonger = int64( 250 )
 
 // this is our implementation
 type awsSqsImpl struct {
@@ -137,7 +137,7 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
    if totalSize > MAX_SQS_BLOCK_SIZE {
       if oversizeCount == 0 {
          half := sz / 2
-         fmt.Printf( "WARNING: blocksize too large, splitting at %d\n", half )
+         log.Printf( "WARNING: blocksize too large, splitting at %d", half )
          op1, err1 := awsi.BatchMessagePut( queue, messages[ 0:half ] )
          op2, err2 := awsi.BatchMessagePut( queue, messages[ half: ] )
          copy( op1, op2 )
@@ -179,7 +179,7 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
    }
 
    for _, f := range response.Failed {
-      fmt.Printf( "ERROR: %s %s\n", *f.Id, *f.Message )
+      log.Printf( "ERROR: ID %s send not successful (%s)", *f.Id, *f.Message )
       id, converr := strconv.Atoi( *f.Id )
       if converr == nil && id < sz {
          ops[ id ] = false
@@ -188,7 +188,7 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
    }
 
    //for _, f := range response.Successful {
-   //   fmt.Printf( "OK: %s\n", *f.Id )
+   //   log.Printf( "OK: %s", *f.Id )
    //}
 
    return ops, err
@@ -236,7 +236,7 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
    }
 
    for _, f := range response.Failed {
-      fmt.Printf( "ERROR: %s %s\n", *f.Id, *f.Message )
+      log.Printf( "ERROR: ID %s delete not successful (%s)", *f.Id, *f.Message )
       id, converr := strconv.Atoi( *f.Id )
       if converr == nil && uint( id ) < sz {
          ops[ id ] = false
@@ -245,7 +245,7 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
    }
 
    //for _, f := range response.Successful {
-   //   fmt.Printf( "OK: %s\n", *f.Id )
+   //   log.Printf( "OK: %s", *f.Id )
    //}
 
    return ops, err
@@ -304,7 +304,7 @@ func awsAttribsFromMessageAttribs( attribs Attributes ) map[string] * sqs.Messag
 func warnIfSlow( elapsed int64, prefix string ) {
 
    if elapsed >= warnIfRequestTakesLonger {
-      fmt.Printf("WARNING: %s elapsed %d ms\n", prefix, elapsed)
+      log.Printf("WARNING: %s elapsed %d ms", prefix, elapsed)
    }
 }
 
