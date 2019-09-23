@@ -125,7 +125,7 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
    var totalSize uint = 0
    oversizeCount := 0
    for _, m := range messages {
-      var sz uint = uint( len( m.Payload ) )
+      sz := m.Size( )
       if sz > MAX_SQS_MESSAGE_SIZE {
          oversizeCount++
       }
