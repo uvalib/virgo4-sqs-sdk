@@ -413,6 +413,36 @@ func TestBatchMessageDeleteBadDeleteHandle( t *testing.T ) {
    }
 }
 
+func TestSmallMessageSize( t *testing.T ) {
+
+   message := makeSmallMessage( )
+   expected := smallMessageSize + attributesSize( message.Attribs )
+   actual := message.Size( )
+   if expected != actual {
+      t.Fatalf("Unexpected size. Expected %d, got %d\n", expected, actual )
+   }
+}
+
+func TestLargeMessageSize( t *testing.T ) {
+
+   message := makeLargeMessage( )
+   expected := largeMessageSize + attributesSize( message.Attribs )
+   actual := message.Size( )
+   if expected != actual {
+      t.Fatalf("Unexpected size. Expected %d, got %d\n", expected, actual )
+   }
+}
+
+func TestEmptyMessageSize( t *testing.T ) {
+
+   var message Message
+   expected := uint( 0 )
+   actual := message.Size( )
+   if expected != actual {
+      t.Fatalf("Unexpected size. Expected %d, got %d\n", expected, actual )
+   }
+}
+
 //
 // helper methods
 //
@@ -509,6 +539,16 @@ func extractAttribute( attribs Attributes, name string ) string {
       }
    }
    return ""
+}
+
+func attributesSize( attribs Attributes ) uint {
+
+   var padFactor = 8
+   sz := uint( 0 )
+   for _, a := range attribs {
+      sz += uint( len( a.Name ) + len( a.Value ) + ( 2 * padFactor ) )
+   }
+   return sz
 }
 
 func allOperationsOK( ops []OpStatus ) bool {

@@ -252,6 +252,19 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
 }
 
 //
+// Message helpers methods
+//
+func ( m * Message ) Size( ) uint {
+
+   var padFactor = 8
+   sz := uint( len( m.Payload ) )
+   for _, a := range m.Attribs {
+      sz += uint( len( a.Name ) + len( a.Value ) + ( 2 * padFactor ) )
+   }
+   return sz
+}
+
+//
 // private helper methods
 //
 
