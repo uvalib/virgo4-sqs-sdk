@@ -38,7 +38,7 @@ type Attribute struct {
 }
 
 type Attributes []Attribute
-type Payload string
+type Payload []byte
 
 type Message struct {
    Attribs      Attributes

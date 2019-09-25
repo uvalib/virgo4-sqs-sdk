@@ -2,6 +2,7 @@ package awssqs
 
 import (
    "crypto/md5"
+   "encoding/base64"
    "fmt"
    "math/rand"
    "testing"
@@ -19,7 +20,6 @@ var zeroWaitTime = 0 * time.Second
 // used when generating random messages
 var smallMessageSize = uint( 37628 )
 var largeMessageSize = MAX_SQS_MESSAGE_SIZE * 2
-var characters = []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 //
 // General behavior tests
@@ -48,10 +48,8 @@ func TestCorrectMessageCount(t *testing.T) {
       t.Fatalf("One or more put operations reported failed incorrectly\n")
    }
 
-   messages, err = awssqs.BatchMessageGet( queueHandle, MAX_SQS_BLOCK_COUNT, goodWaitTime )
-   if err != nil {
-      t.Fatalf("%t\n", err)
-   }
+   // wait for the exact number of messages
+   messages = exactMessageGet( t, awssqs, queueHandle, count, goodWaitTime )
 
    if uint(len( messages )) != count {
       t.Fatalf("Received a different number of messages than expected (expected: %d, received: %d)\n", count, len( messages ) )
@@ -85,10 +83,8 @@ func TestCorrectSmallMessageContent(t *testing.T) {
       t.Fatalf("One or more put operations reported failed incorrectly\n")
    }
 
-   messages, err = awssqs.BatchMessageGet( queueHandle, MAX_SQS_BLOCK_COUNT, goodWaitTime )
-   if err != nil {
-      t.Fatalf("%t\n", err)
-   }
+   // wait for the exact number of messages
+   messages = exactMessageGet( t, awssqs, queueHandle, count, goodWaitTime )
 
    if uint(len( messages )) != count {
       t.Fatalf("Received a different number of messages than expected (expected: %d, received: %d)\n", count, len( messages ) )
@@ -124,10 +120,8 @@ func TestCorrectLargeMessageContent(t *testing.T) {
       t.Fatalf("One or more put operations reported failed incorrectly\n")
    }
 
-   messages, err = awssqs.BatchMessageGet( queueHandle, MAX_SQS_BLOCK_COUNT, goodWaitTime )
-   if err != nil {
-      t.Fatalf("%t\n", err)
-   }
+   // wait for the exact number of messages
+   messages = exactMessageGet( t, awssqs, queueHandle, count, goodWaitTime )
 
    if uint( len( messages ) ) != count {
       t.Fatalf("Received a different number of messages than expected (expected: %d, received: %d)\n", count, len( messages ) )
@@ -447,6 +441,35 @@ func TestEmptyMessageSize( t *testing.T ) {
 // helper methods
 //
 
+func exactMessageGet( t *testing.T, awssqs AWS_SQS, handle QueueHandle, count uint, waittime time.Duration ) []Message {
+
+   start := time.Now( )
+   remaining := waittime
+   result := make( []Message, 0, count )
+
+   for {
+      messages, err := awssqs.BatchMessageGet(handle, count, remaining)
+      if err != nil {
+         t.Fatalf("%t\n", err)
+      }
+      for _, m := range messages {
+         result = append( result, m )
+      }
+
+      // we have the expected number of messages
+      if uint( len( result ) ) == count {
+         return result
+      }
+
+      // is it time to give up
+      elapsed := time.Since( start )
+      if elapsed > waittime {
+         return result
+      }
+      remaining -= elapsed
+   }
+}
+
 func clearQueue( t *testing.T, awssqs AWS_SQS, handle QueueHandle ) {
 
    for {
@@ -502,7 +525,7 @@ func makeStandardMessage( ) Message {
 
 func makeSmallMessage( ) Message {
 
-   payload := randomString( smallMessageSize )
+   payload := randomPayload( smallMessageSize )
    hash := fmt.Sprintf("%x", md5.Sum([]byte( payload ) ) )
    attributes := make( []Attribute, 0, 2 )
    attributes = append( attributes, Attribute{ "type", "text" } )
@@ -512,7 +535,7 @@ func makeSmallMessage( ) Message {
 
 func makeLargeMessage( ) Message {
 
-   payload := randomString( largeMessageSize )
+   payload := randomPayload( largeMessageSize )
    hash := fmt.Sprintf("%x", md5.Sum([]byte( payload ) ) )
    attributes := make( []Attribute, 0, 2 )
    attributes = append( attributes, Attribute{ "type", "text" } )
@@ -560,15 +583,12 @@ func allOperationsOK( ops []OpStatus ) bool {
    return true
 }
 
-func randomString( size uint ) string {
+func randomPayload( size uint ) []byte {
 
-   b := make([]rune, size )
-   for i := range b {
-      b[i] = characters[rand.Intn(len(characters))]
-   }
-   return string(b)
+   b := make( []byte, size )
+   _, _ = rand.Read( b )
+   return []byte( base64.URLEncoding.EncodeToString( b ) )[0:size]
 }
-
 
 //
 // end of file
