@@ -26,6 +26,9 @@ var largeMessageSize = MAX_SQS_MESSAGE_SIZE * 2
 //
 func TestCorrectMessageCount(t *testing.T) {
 
+   // seed the RNG because we use it when calculating message counts and creating messages
+   rand.Seed(time.Now().UnixNano())
+
    awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
    if err != nil {
       t.Fatalf("%t\n", err)
@@ -38,7 +41,7 @@ func TestCorrectMessageCount(t *testing.T) {
 
    clearQueue( t, awssqs, queueHandle )
 
-   count := uint( rand.Intn( int( MAX_SQS_BLOCK_COUNT ) ) )
+   count := randomMessageCount( )
    messages := makeStandardMessages( count )
    ops, err := awssqs.BatchMessagePut( queueHandle, messages )
    if err != nil {
@@ -58,7 +61,7 @@ func TestCorrectMessageCount(t *testing.T) {
 
 func TestCorrectSmallMessageContent(t *testing.T) {
 
-   // seed the RNG because we use it when creating messages
+   // seed the RNG because we use it when calculating message counts and creating messages
    rand.Seed(time.Now().UnixNano())
 
    awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
@@ -73,7 +76,7 @@ func TestCorrectSmallMessageContent(t *testing.T) {
 
    clearQueue( t, awssqs, queueHandle )
 
-   count := uint( rand.Intn( int( MAX_SQS_BLOCK_COUNT ) ) )
+   count := randomMessageCount( )
    messages := makeSmallMessages( count )
    ops, err := awssqs.BatchMessagePut( queueHandle, messages )
    if err != nil {
@@ -95,7 +98,7 @@ func TestCorrectSmallMessageContent(t *testing.T) {
 
 func TestCorrectLargeMessageContent(t *testing.T) {
 
-   // seed the RNG because we use it when creating messages
+   // seed the RNG because we use it when calculating message counts and creating messages
    rand.Seed(time.Now().UnixNano())
 
    awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
@@ -110,7 +113,7 @@ func TestCorrectLargeMessageContent(t *testing.T) {
 
    clearQueue( t, awssqs, queueHandle )
 
-   count := uint( rand.Intn( int( MAX_SQS_BLOCK_COUNT ) ) )
+   count := randomMessageCount( )
    messages := makeLargeMessages( count )
    ops, err := awssqs.BatchMessagePut( queueHandle, messages )
    if err != nil {
@@ -588,6 +591,10 @@ func randomPayload( size uint ) []byte {
    b := make( []byte, size )
    _, _ = rand.Read( b )
    return []byte( base64.URLEncoding.EncodeToString( b ) )[0:size]
+}
+
+func randomMessageCount( ) uint {
+   return uint( rand.Intn( int( MAX_SQS_BLOCK_COUNT - 1 ) ) + 1 )
 }
 
 //
