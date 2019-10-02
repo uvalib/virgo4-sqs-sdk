@@ -9,10 +9,13 @@ import (
    "time"
 )
 
+// message bucket name
+var messageBucketName = "virgo4-ingest-staging-messages"
+
 var goodQueueName = "virgo4-ingest-test-staging"
 var badQueueName = "xxx"
 var badQueueHandle = QueueHandle( "blablabla" )
-var badDeleteHandle = DeleteHandle( "blablabla" )
+var badReceiptHandle = ReceiptHandle( "blablabla" )
 var goodWaitTime = 15 * time.Second
 var badWaitTime = 99 * time.Second
 var zeroWaitTime = 0 * time.Second
@@ -29,7 +32,7 @@ func TestCorrectMessageCount(t *testing.T) {
    // seed the RNG because we use it when calculating message counts and creating messages
    rand.Seed(time.Now().UnixNano())
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -57,6 +60,14 @@ func TestCorrectMessageCount(t *testing.T) {
    if uint(len( messages )) != count {
       t.Fatalf("Received a different number of messages than expected (expected: %d, received: %d)\n", count, len( messages ) )
    }
+
+   ops, err = awssqs.BatchMessageDelete( queueHandle, messages )
+   if err != nil {
+      t.Fatalf("%t\n", err)
+   }
+   if allOperationsOK( ops ) == false {
+      t.Fatalf("One or more delete operations reported failed unexpectedly\n")
+   }
 }
 
 func TestCorrectSmallMessageContent(t *testing.T) {
@@ -64,7 +75,7 @@ func TestCorrectSmallMessageContent(t *testing.T) {
    // seed the RNG because we use it when calculating message counts and creating messages
    rand.Seed(time.Now().UnixNano())
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -94,6 +105,14 @@ func TestCorrectSmallMessageContent(t *testing.T) {
    }
 
    verifyMessages( t, messages )
+
+   ops, err = awssqs.BatchMessageDelete( queueHandle, messages )
+   if err != nil {
+      t.Fatalf("%t\n", err)
+   }
+   if allOperationsOK( ops ) == false {
+      t.Fatalf("One or more delete operations reported failed unexpectedly\n")
+   }
 }
 
 func TestCorrectLargeMessageContent(t *testing.T) {
@@ -101,7 +120,7 @@ func TestCorrectLargeMessageContent(t *testing.T) {
    // seed the RNG because we use it when calculating message counts and creating messages
    rand.Seed(time.Now().UnixNano())
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -131,6 +150,14 @@ func TestCorrectLargeMessageContent(t *testing.T) {
    }
 
    verifyMessages( t, messages )
+
+   ops, err = awssqs.BatchMessageDelete( queueHandle, messages )
+   if err != nil {
+      t.Fatalf("%t\n", err)
+   }
+   if allOperationsOK( ops ) == false {
+      t.Fatalf("One or more delete operations reported failed unexpectedly\n")
+   }
 }
 
 //
@@ -139,7 +166,7 @@ func TestCorrectLargeMessageContent(t *testing.T) {
 
 func TestQueueHandleHappyDay(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -156,7 +183,7 @@ func TestQueueHandleHappyDay(t *testing.T) {
 
 func TestQueueHandleBadName(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -173,7 +200,7 @@ func TestQueueHandleBadName(t *testing.T) {
 
 func TestBatchMessageGetHappyDay(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -195,7 +222,7 @@ func TestBatchMessageGetHappyDay(t *testing.T) {
 
 func TestBatchMessageGetBadQueueHandle(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -208,7 +235,7 @@ func TestBatchMessageGetBadQueueHandle(t *testing.T) {
 
 func TestBatchMessageGetBadBlockSize(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -226,7 +253,7 @@ func TestBatchMessageGetBadBlockSize(t *testing.T) {
 
 func TestBatchMessageGetBadWaitTime(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -248,7 +275,7 @@ func TestBatchMessageGetBadWaitTime(t *testing.T) {
 
 func TestBatchMessagePutHappyDay( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -271,7 +298,7 @@ func TestBatchMessagePutHappyDay( t *testing.T ) {
 
 func TestBatchMessagePutBadQueueHandle( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -289,7 +316,7 @@ func TestBatchMessagePutBadQueueHandle( t *testing.T ) {
 
 func TestBatchMessagePutBadBlockCount( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -316,7 +343,7 @@ func TestBatchMessagePutBadBlockCount( t *testing.T ) {
 
 func TestBatchMessageDeleteHappyDay( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -352,7 +379,7 @@ func TestBatchMessageDeleteHappyDay( t *testing.T ) {
 
 func TestBatchMessageDeleteBadQueueHandle( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -367,7 +394,7 @@ func TestBatchMessageDeleteBadQueueHandle( t *testing.T ) {
 
 func TestBatchMessageDeleteBadBlockCount( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -385,9 +412,9 @@ func TestBatchMessageDeleteBadBlockCount( t *testing.T ) {
    }
 }
 
-func TestBatchMessageDeleteBadDeleteHandle( t *testing.T ) {
+func TestBatchMessageDeleteBadReceiptHandle( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -399,7 +426,7 @@ func TestBatchMessageDeleteBadDeleteHandle( t *testing.T ) {
 
    count := uint( 1 )
    messages := makeStandardMessages( count )
-   messages[ 0 ].DeleteHandle = badDeleteHandle
+   messages[ 0 ].ReceiptHandle = badReceiptHandle
 
    ops, err := awssqs.BatchMessageDelete( queueHandle, messages )
    if err != OneOrMoreOperationsUnsuccessfulError {
@@ -482,6 +509,14 @@ func clearQueue( t *testing.T, awssqs AWS_SQS, handle QueueHandle ) {
       }
       if len( messages ) == 0 {
          break
+      }
+
+      ops, err := awssqs.BatchMessageDelete( handle, messages )
+      if err != nil {
+         t.Fatalf("%t\n", err)
+      }
+      if allOperationsOK( ops ) == false {
+         t.Fatalf("One or more delete operations reported failed unexpectedly\n")
       }
    }
 }
@@ -569,10 +604,11 @@ func extractAttribute( attribs Attributes, name string ) string {
 
 func attributesSize( attribs Attributes ) uint {
 
-   var padFactor = 8
+   //var padFactor = 8
    sz := uint( 0 )
    for _, a := range attribs {
-      sz += uint( len( a.Name ) + len( a.Value ) + ( 2 * padFactor ) )
+//      sz += uint( len( a.Name ) + len( a.Value ) + ( 2 * padFactor ) )
+      sz += uint( len( a.Name ) + len( a.Value ) )
    }
    return sz
 }

@@ -18,8 +18,6 @@ var emptyMessageList = make( []Message, 0 )
 var malformedInputErrorPrefix = "MalformedInput"
 var invalidAddressErrorPrefix = "InvalidAddress"
 
-var warnIfRequestTakesLonger = int64( 250 )
-
 // this is our implementation
 type awsSqsImpl struct {
    config    AwsSqsConfig
@@ -28,6 +26,11 @@ type awsSqsImpl struct {
 
 // Initialize our AWS_SQS abstraction
 func newAwsSqs( config AwsSqsConfig ) (AWS_SQS, error ) {
+
+   // validate the configuration
+   if len( config.s3bucketName ) == 0 {
+      return nil, MissingConfiguration
+   }
 
    sess, err := session.NewSession( )
    if err != nil {
@@ -100,15 +103,20 @@ func ( awsi *awsSqsImpl) BatchMessageGet( queue QueueHandle, maxMessages uint, w
    // we want to warn if the receive took a long time (and yielded messages)
    warnIfSlow( elapsed, "ReceiveMessage" )
 
+   // build the response message set from the returned AWS structures
    messages := make( []Message, 0, sz )
    for _, m := range result.Messages {
-      messages = append( messages, messageFromAwsStruct( *m ) )
+      m, err := MakeMessage( *m )
+      if err != nil {
+         return emptyMessageList, err
+      }
+      messages = append( messages, *m )
    }
 
    return messages, nil
 }
 
-func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message ) ( []OpStatus, error ) {
+func ( awsi * awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message ) ( []OpStatus, error ) {
 
    // early exit if no messages provided
    sz := len( messages )
@@ -121,44 +129,49 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
       return emptyOpList, BlockCountTooLargeError
    }
 
-   // calculate the total block size and the number of messages that are larger than the maximum message size
-   var totalSize uint = 0
-   oversizeCount := 0
-   for _, m := range messages {
-      sz := m.Size( )
+   // our operation status array
+   ops := make( []OpStatus, sz, sz )
+
+   // convert any oversize messages (use index access to the array because this updates the messages)
+   for ix, _ := range messages {
+      ops[ ix ] = true
+      sz := messages[ ix ].Size( )
       if sz > MAX_SQS_MESSAGE_SIZE {
-         oversizeCount++
+         err := messages[ ix ].ConvertToOversizeMessage( awsi.config.s3bucketName )
+         if err != nil {
+            // FIXME
+            return emptyOpList, err
+            //ops[ ix ] = false
+         }
       }
-      totalSize += sz
    }
 
-   // if the total block size is too large and we do not have any messages that are too large then we can split
-   // the block in half and handle each one individually
+   // calculate the total block size and the number of messages that are larger than the maximum message size
+   var totalSize uint = 0
+   for _, m := range messages {
+      totalSize += m.Size( )
+   }
+
+   // if the total block size is too large then we can split the block in half and handle each one individually
    if totalSize > MAX_SQS_BLOCK_SIZE {
-      if oversizeCount == 0 {
-         half := sz / 2
-         log.Printf( "WARNING: blocksize too large, splitting at %d", half )
-         op1, err1 := awsi.BatchMessagePut( queue, messages[ 0:half ] )
-         op2, err2 := awsi.BatchMessagePut( queue, messages[ half: ] )
-         copy( op1, op2 )
-         if err1 != nil {
-            return op1, err1
-         } else {
-            return op1, err2
-         }
+      half := sz / 2
+      log.Printf( "WARNING: blocksize too large, splitting at %d", half )
+      op1, err1 := awsi.BatchMessagePut( queue, messages[ 0:half ] )
+      op2, err2 := awsi.BatchMessagePut( queue, messages[ half: ] )
+      copy( op1, op2 )
+      if err1 != nil {
+         return op1, err1
       } else {
-         return emptyOpList, MessageTooLargeError
+         return op1, err2
       }
    }
 
    q := string( queue )
 
    batch := make( []*sqs.SendMessageBatchRequestEntry, 0, sz )
-   ops := make( []OpStatus, 0, sz )
 
    for ix, m := range messages {
       batch = append( batch, constructSend( m, ix ) )
-      ops = append( ops, true )
    }
 
    start := time.Now( )
@@ -197,7 +210,7 @@ func ( awsi *awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message 
 func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Message ) ( []OpStatus, error ) {
 
    // early exit if no messages provided
-   var sz uint = uint( len( messages ) )
+   var sz = uint( len( messages ) )
    if sz == 0 {
       return emptyOpList, nil
    }
@@ -210,12 +223,12 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
    q := string( queue )
 
    batch := make( []*sqs.DeleteMessageBatchRequestEntry, 0, sz )
-   ops := make( []OpStatus, 0, sz )
+   ops := make( []OpStatus, sz, sz )
 
-   // the delete loop, assume everything worked
+   // the SQS delete loop, initially, assume everything works
    for ix, m := range messages {
-      batch = append( batch, constructDelete( m.DeleteHandle, ix ) )
-      ops = append( ops, true )
+      ops[ ix ] = true
+      batch = append( batch, constructDelete( m.GetReceiptHandle( ), ix ) )
    }
 
    start := time.Now( )
@@ -241,84 +254,28 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
       if converr == nil && uint( id ) < sz {
          ops[ id ] = false
          err = OneOrMoreOperationsUnsuccessfulError
+      } else {
+         log.Printf( "ERROR: Suspect ID %s delete not successful", *f.Id )
       }
    }
 
-   //for _, f := range response.Successful {
-   //   log.Printf( "OK: %s", *f.Id )
-   //}
+   // we have now deleted the messages from SQS, delete any oversize payloads from S3
+   for _, f := range response.Successful {
+      id, converr := strconv.Atoi( *f.Id )
+      if converr == nil && uint( id ) < sz {
+         if messages[ id ].IsOversize() == true {
+            deleteError := messages[ id ].DeleteOversizeMessage( )
+            if deleteError != nil {
+               ops[ id ] = false
+               err = OneOrMoreOperationsUnsuccessfulError
+            }
+         }
+      } else {
+         log.Printf( "ERROR: Suspect ID %s delete not successful", *f.Id )
+      }
+   }
 
    return ops, err
-}
-
-//
-// Message helpers methods
-//
-func ( m * Message ) Size( ) uint {
-
-   var padFactor = 8
-   sz := uint( len( m.Payload ) )
-   for _, a := range m.Attribs {
-      sz += uint( len( a.Name ) + len( a.Value ) + ( 2 * padFactor ) )
-   }
-   return sz
-}
-
-//
-// private helper methods
-//
-
-func constructSend( message Message, index int ) * sqs.SendMessageBatchRequestEntry {
-
-   return &sqs.SendMessageBatchRequestEntry{
-      MessageAttributes: awsAttribsFromMessageAttribs( message.Attribs ),
-      MessageBody:       aws.String( string( message.Payload ) ),
-      Id:                aws.String( strconv.Itoa( index )),
-   }
-}
-
-func constructDelete( deleteHandle DeleteHandle, index int ) * sqs.DeleteMessageBatchRequestEntry {
-
-   return &sqs.DeleteMessageBatchRequestEntry{
-      ReceiptHandle: aws.String( string( deleteHandle ) ),
-      Id:            aws.String( strconv.Itoa( index )),
-   }
-}
-
-func messageFromAwsStruct( awsMessage sqs.Message ) Message {
-
-   return Message{
-      DeleteHandle: DeleteHandle( *awsMessage.ReceiptHandle ),
-      Attribs:      messageAttribsFromAwsStrict( awsMessage.MessageAttributes ),
-      Payload:      Payload( *awsMessage.Body ),
-   }
-}
-
-func messageAttribsFromAwsStrict( attribs map[string] * sqs.MessageAttributeValue  ) Attributes {
-   attributes := make( []Attribute, 0, len( attribs ) )
-   for k, v := range attribs {
-      attributes = append( attributes, Attribute{ Name: k, Value: *v.StringValue })
-   }
-   a := Attributes( attributes )
-   return a
-}
-
-func awsAttribsFromMessageAttribs( attribs Attributes ) map[string] * sqs.MessageAttributeValue {
-   attributes := make( map[string] * sqs.MessageAttributeValue )
-   for _, a := range attribs {
-      attributes[ a.Name ] = &sqs.MessageAttributeValue{
-         DataType: aws.String("String" ),
-         StringValue: aws.String( a.Value ),
-      }
-   }
-   return attributes
-}
-
-func warnIfSlow( elapsed int64, prefix string ) {
-
-   if elapsed >= warnIfRequestTakesLonger {
-      log.Printf("WARNING: %s elapsed %d ms", prefix, elapsed)
-   }
 }
 
 //

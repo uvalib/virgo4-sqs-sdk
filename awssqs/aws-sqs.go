@@ -25,11 +25,14 @@ var WaitTooLargeError = fmt.Errorf( "Wait time is too large. Must be %d or less"
 var BadQueueNameError = fmt.Errorf( "Queue name does not exist" )
 var BadQueueHandleError = fmt.Errorf( "Queue handle is bad" )
 var OneOrMoreOperationsUnsuccessfulError = fmt.Errorf( "One or more operations were not successful" )
+var BadReceiptHandleError = fmt.Errorf( "Receipt handle format is incorrect for large message support" )
+var MismatchedContentsSize = fmt.Errorf( "Actual S3 message size differs from expected size" )
+var MissingConfiguration = fmt.Errorf( "Configuration information is incomplete" )
 
 // simplifications
-type QueueHandle  string
-type DeleteHandle string
-type OpStatus     bool
+type QueueHandle   string
+type ReceiptHandle string
+type OpStatus      bool
 
 // just a KV pair
 type Attribute struct {
@@ -41,9 +44,12 @@ type Attributes []Attribute
 type Payload []byte
 
 type Message struct {
-   Attribs      Attributes
-   DeleteHandle DeleteHandle
-   Payload      Payload
+   Attribs       Attributes
+   ReceiptHandle ReceiptHandle
+   Payload       Payload
+
+   // used by the implementation
+   oversize bool
 }
 
 type AWS_SQS interface {
@@ -54,7 +60,6 @@ type AWS_SQS interface {
 }
 
 type AwsSqsConfig struct {
-   supportLargeMessages bool
    s3bucketName         string
 }
 

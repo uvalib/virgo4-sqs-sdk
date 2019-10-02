@@ -7,7 +7,7 @@ PACKAGENAME=awssqs
 build: test
 
 test:
-	cd $(PACKAGENAME); $(GOTEST) -v
+	cd $(PACKAGENAME); $(GOTEST) -v $(if $(TEST),-run $(TEST),)
 
 deps:
 	cd $(PACKAGENAME); $(GOGET) -u
