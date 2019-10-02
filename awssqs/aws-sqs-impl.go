@@ -28,7 +28,7 @@ type awsSqsImpl struct {
 func newAwsSqs( config AwsSqsConfig ) (AWS_SQS, error ) {
 
    // validate the configuration
-   if len( config.s3bucketName ) == 0 {
+   if len( config.MessageBucketName ) == 0 {
       return nil, MissingConfiguration
    }
 
@@ -137,7 +137,7 @@ func ( awsi * awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message
       ops[ ix ] = true
       sz := messages[ ix ].Size( )
       if sz > MAX_SQS_MESSAGE_SIZE {
-         err := messages[ ix ].ConvertToOversizeMessage( awsi.config.s3bucketName )
+         err := messages[ ix ].ConvertToOversizeMessage( awsi.config.MessageBucketName )
          if err != nil {
             // FIXME
             return emptyOpList, err

@@ -32,7 +32,7 @@ func TestCorrectMessageCount(t *testing.T) {
    // seed the RNG because we use it when calculating message counts and creating messages
    rand.Seed(time.Now().UnixNano())
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -75,7 +75,7 @@ func TestCorrectSmallMessageContent(t *testing.T) {
    // seed the RNG because we use it when calculating message counts and creating messages
    rand.Seed(time.Now().UnixNano())
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -120,7 +120,7 @@ func TestCorrectLargeMessageContent(t *testing.T) {
    // seed the RNG because we use it when calculating message counts and creating messages
    rand.Seed(time.Now().UnixNano())
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -166,7 +166,7 @@ func TestCorrectLargeMessageContent(t *testing.T) {
 
 func TestQueueHandleHappyDay(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -183,7 +183,7 @@ func TestQueueHandleHappyDay(t *testing.T) {
 
 func TestQueueHandleBadName(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -200,7 +200,7 @@ func TestQueueHandleBadName(t *testing.T) {
 
 func TestBatchMessageGetHappyDay(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -222,7 +222,7 @@ func TestBatchMessageGetHappyDay(t *testing.T) {
 
 func TestBatchMessageGetBadQueueHandle(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -235,7 +235,7 @@ func TestBatchMessageGetBadQueueHandle(t *testing.T) {
 
 func TestBatchMessageGetBadBlockSize(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -253,7 +253,7 @@ func TestBatchMessageGetBadBlockSize(t *testing.T) {
 
 func TestBatchMessageGetBadWaitTime(t *testing.T) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -275,7 +275,7 @@ func TestBatchMessageGetBadWaitTime(t *testing.T) {
 
 func TestBatchMessagePutHappyDay( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -298,7 +298,7 @@ func TestBatchMessagePutHappyDay( t *testing.T ) {
 
 func TestBatchMessagePutBadQueueHandle( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -316,7 +316,7 @@ func TestBatchMessagePutBadQueueHandle( t *testing.T ) {
 
 func TestBatchMessagePutBadBlockCount( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -343,7 +343,7 @@ func TestBatchMessagePutBadBlockCount( t *testing.T ) {
 
 func TestBatchMessageDeleteHappyDay( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -379,7 +379,7 @@ func TestBatchMessageDeleteHappyDay( t *testing.T ) {
 
 func TestBatchMessageDeleteBadQueueHandle( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -394,7 +394,7 @@ func TestBatchMessageDeleteBadQueueHandle( t *testing.T ) {
 
 func TestBatchMessageDeleteBadBlockCount( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }
@@ -414,7 +414,7 @@ func TestBatchMessageDeleteBadBlockCount( t *testing.T ) {
 
 func TestBatchMessageDeleteBadReceiptHandle( t *testing.T ) {
 
-   awssqs, err := NewAwsSqs( AwsSqsConfig{ s3bucketName: messageBucketName } )
+   awssqs, err := NewAwsSqs( AwsSqsConfig{ MessageBucketName: messageBucketName } )
    if err != nil {
       t.Fatalf("%t\n", err)
    }

@@ -60,7 +60,7 @@ type AWS_SQS interface {
 }
 
 type AwsSqsConfig struct {
-   s3bucketName         string
+   MessageBucketName    string
 }
 
 // Initialize our AWS_SQS connection
