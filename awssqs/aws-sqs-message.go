@@ -21,7 +21,7 @@ type S3Marker struct {
 }
 
 //
-// Message factory
+// our message factory based on a message from AWS
 //
 func MakeMessage( awsMessage sqs.Message ) ( * Message, error ) {
 
@@ -40,6 +40,7 @@ func MakeMessage( awsMessage sqs.Message ) ( * Message, error ) {
       // use this later
       sz, _ := strconv.Atoi( s3size )
 
+      // mark as oversize and extract the S3 marker from the payload which has bucket and key information
       message.oversize = true
       s3, err := message.decodeS3Marker( message.Payload )
       if err != nil {
@@ -49,7 +50,7 @@ func MakeMessage( awsMessage sqs.Message ) ( * Message, error ) {
       // construct the new receipt handle... we overload it with bucket and key information
       newReceiptHandle := message.makeEnhancedReceiptHandle( s3.Bucket, s3.Key, message.ReceiptHandle )
 
-      // get the contents from S3
+      // get the actual message contents from S3
       contents, err := s3Get( s3.Bucket, s3.Key, sz )
       if err != nil {
          return nil, err
@@ -66,13 +67,14 @@ func MakeMessage( awsMessage sqs.Message ) ( * Message, error ) {
       // save the 'enhanced' receipt handle
       message.ReceiptHandle = newReceiptHandle
 
-      // finally, delete the 'marker' attribute we use for
+      // finally, delete the 'marker' attribute we use for indicating this is a special type of message
       message.deleteAttribute(oversizeMessageAttributeName)
    }
 
    return message, nil
 }
 
+// make a set of our message attributes from AWS message metadata
 func makeAttributes( attribs map[string] * sqs.MessageAttributeValue  ) Attributes {
    attributes := make( []Attribute, 0, len( attribs ) )
    for k, v := range attribs {
@@ -87,7 +89,7 @@ func makeAttributes( attribs map[string] * sqs.MessageAttributeValue  ) Attribut
 //
 
 // an approximation of the message size. Used in calculations to ensure we do not exceed the
-// maximum block size
+// maximum message block size imposed by AWS
 func ( m * Message ) Size( ) uint {
 
 //   var padFactor = 8
@@ -104,7 +106,7 @@ func ( m * Message ) IsOversize( ) bool {
    return m.oversize
 }
 
-// if this is a large message, delete the bucket contents
+// if this is an oversize  message, delete the bucket contents
 func ( m * Message ) DeleteOversizeMessage( ) error {
 
    // if this is not a oversize message, then ignore
@@ -112,7 +114,7 @@ func ( m * Message ) DeleteOversizeMessage( ) error {
       return nil
    }
 
-   log.Printf( "INFO: deleting oversize message" )
+   //log.Printf( "INFO: deleting oversize message" )
    
    // a oversize 'large' messages encodes the bucket attributes in the receipt handle
    bucket, key := m.getBucketAttributes( m.ReceiptHandle )
@@ -171,10 +173,10 @@ func ( m * Message ) GetReceiptHandle( ) ReceiptHandle {
 }
 
 //
-// private methods
+// implementation methods
 //
 
-// extract the S3 marker object from the supplied payload
+// decode the S3 marker object from the supplied payload
 func ( m * Message ) decodeS3Marker( payload Payload ) ( * S3Marker, error ) {
 
    s3Marker := S3Marker{ }
@@ -186,6 +188,7 @@ func ( m * Message ) decodeS3Marker( payload Payload ) ( * S3Marker, error ) {
    return &s3Marker, nil
 }
 
+// encode an S3 marker object based on the supplied bucket information
 func ( m * Message ) encodeS3Marker( bucket string, key string ) ( []byte, error ) {
 
    s3Marker := S3Marker{ Bucket: bucket, Key: key }

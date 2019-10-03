@@ -27,6 +27,7 @@ func init( ) {
    }
 }
 
+// add the buffer to a new S3 object and return the object key
 func s3Add( bucket string, contents []byte ) ( string, error ) {
 
    key := uuid.New( ).String( )
@@ -48,11 +49,12 @@ func s3Add( bucket string, contents []byte ) ( string, error ) {
    }
 
    duration := time.Since(start)
-   log.Printf("Upload of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds() )
+   log.Printf("INFO: upload of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds() )
 
    return key, nil
 }
 
+// read the contents from the specified S3 object returning a buffer to the contents
 func s3Get( bucket string, key string, size int ) ( []byte, error ) {
 
    log.Printf( "INFO: downloading from s3://%s/%s (%d bytes)", bucket, key, size )
@@ -71,11 +73,12 @@ func s3Get( bucket string, key string, size int ) ( []byte, error ) {
    }
 
    duration := time.Since(start)
-   log.Printf("Download of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds() )
+   log.Printf("INFO: download of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds() )
 
    return buff.Bytes(), nil
 }
 
+// delete the specified S3 object
 func s3Delete( bucket string, key string ) error {
 
    log.Printf( "INFO: deleting s3://%s/%s", bucket, key )
@@ -87,7 +90,7 @@ func s3Delete( bucket string, key string ) error {
    }
 
    duration := time.Since(start)
-   log.Printf("Delete of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds() )
+   log.Printf("INFO: delete of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds() )
    return nil
 }
 

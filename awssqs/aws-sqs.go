@@ -53,21 +53,33 @@ type Message struct {
 }
 
 type AWS_SQS interface {
+
+   // get a queue handle (URL) when provided a queue name
    QueueHandle( string ) ( QueueHandle, error )
+
+   // get a batch of messages from the specified queue. Will return on receipt of any messages
+   // without waiting and will wait no longer than the wait time if no messages are received.
    BatchMessageGet( queue QueueHandle, maxMessages uint, waitTime time.Duration ) ( []Message, error )
+
+   // put a batch of messages to the specified queue.
+   // in the event of one or more failure, the operation status array will indicate which
+   // messages were processed successfully and which were not.
    BatchMessagePut( queue QueueHandle, messages []Message ) ( []OpStatus, error )
+
+   // mark a batch of messages from the specified queue as suitable for delete. This mechanism
+   // prevents messages from being reprocessed.
    BatchMessageDelete( queue QueueHandle, messages []Message ) ( []OpStatus, error )
 }
 
+// our configuration structure
 type AwsSqsConfig struct {
-   MessageBucketName    string
+   MessageBucketName    string     // the name of the bucket to use for oversize messages
 }
 
-// Initialize our AWS_SQS connection
+// factory for our SQS interface
 func NewAwsSqs( config AwsSqsConfig ) (AWS_SQS, error ) {
 
    // mock the implementation here if necessary
-
    aws, err := newAwsSqs( config )
    return aws, err
 }

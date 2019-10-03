@@ -15,19 +15,18 @@ var emptyOpList = make( []OpStatus, 0 )
 var emptyMessageList = make( []Message, 0 )
 
 // text for a specific error cases
-var malformedInputErrorPrefix = "MalformedInput"
 var invalidAddressErrorPrefix = "InvalidAddress"
 
-// this is our implementation
+// this is our interface implementation
 type awsSqsImpl struct {
    config    AwsSqsConfig
    svc      * sqs.SQS
 }
 
-// Initialize our AWS_SQS abstraction
+// factory for our SQS interface
 func newAwsSqs( config AwsSqsConfig ) (AWS_SQS, error ) {
 
-   // validate the configuration
+   // validate the inbound configuration
    if len( config.MessageBucketName ) == 0 {
       return nil, MissingConfiguration
    }
@@ -42,6 +41,7 @@ func newAwsSqs( config AwsSqsConfig ) (AWS_SQS, error ) {
    return &awsSqsImpl{config, svc }, nil
 }
 
+// get a queue handle (URL) when provided a queue name
 func ( awsi *awsSqsImpl) QueueHandle( queueName string ) ( QueueHandle, error ) {
 
    // get the queue URL from the name
@@ -59,6 +59,8 @@ func ( awsi *awsSqsImpl) QueueHandle( queueName string ) ( QueueHandle, error ) 
    return QueueHandle( *result.QueueUrl ), nil
 }
 
+// get a batch of messages from the specified queue. Will return on receipt of any messages
+// without waiting and will wait no longer than the wait time if no messages are received.
 func ( awsi *awsSqsImpl) BatchMessageGet( queue QueueHandle, maxMessages uint, waitTime time.Duration ) ( []Message, error ) {
 
    // ensure the block size is not too large
@@ -116,6 +118,9 @@ func ( awsi *awsSqsImpl) BatchMessageGet( queue QueueHandle, maxMessages uint, w
    return messages, nil
 }
 
+// put a batch of messages to the specified queue.
+// in the event of one or more failure, the operation status array will indicate which
+// messages were processed successfully and which were not.
 func ( awsi * awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message ) ( []OpStatus, error ) {
 
    // early exit if no messages provided
@@ -132,16 +137,17 @@ func ( awsi * awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message
    // our operation status array
    ops := make( []OpStatus, sz, sz )
 
-   // convert any oversize messages (use index access to the array because this updates the messages)
+   // initialize the operation status array to all successful and convert any
+   // oversize messages (use index access to the array because this updates the messages)
    for ix, _ := range messages {
       ops[ ix ] = true
+
       sz := messages[ ix ].Size( )
       if sz > MAX_SQS_MESSAGE_SIZE {
          err := messages[ ix ].ConvertToOversizeMessage( awsi.config.MessageBucketName )
          if err != nil {
-            // FIXME
-            return emptyOpList, err
-            //ops[ ix ] = false
+            log.Printf( "WARNING: failed converting oversize message, ignoring further processing for it" )
+            ops[ ix ] = false
          }
       }
    }
@@ -170,8 +176,11 @@ func ( awsi * awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message
 
    batch := make( []*sqs.SendMessageBatchRequestEntry, 0, sz )
 
+   // make a batch of messages that we successfully processed so far
    for ix, m := range messages {
-      batch = append( batch, constructSend( m, ix ) )
+      if ops[ ix ] == true {
+         batch = append(batch, constructSend(m, ix))
+      }
    }
 
    start := time.Now( )
@@ -196,17 +205,21 @@ func ( awsi * awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message
       id, converr := strconv.Atoi( *f.Id )
       if converr == nil && id < sz {
          ops[ id ] = false
-         err = OneOrMoreOperationsUnsuccessfulError
       }
    }
 
-   //for _, f := range response.Successful {
-   //   log.Printf( "OK: %s", *f.Id )
-   //}
+   // if any of the operation statuses are failures, return an error indicating so
+   for _, b := range ops {
+      if b == false {
+         return ops, OneOrMoreOperationsUnsuccessfulError
+      }
+   }
 
-   return ops, err
+   return ops, nil
 }
 
+// mark a batch of messages from the specified queue as suitable for delete. This mechanism
+// prevents messages from being reprocessed.
 func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Message ) ( []OpStatus, error ) {
 
    // early exit if no messages provided
@@ -253,7 +266,6 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
       id, converr := strconv.Atoi( *f.Id )
       if converr == nil && uint( id ) < sz {
          ops[ id ] = false
-         err = OneOrMoreOperationsUnsuccessfulError
       } else {
          log.Printf( "ERROR: Suspect ID %s delete not successful", *f.Id )
       }
@@ -266,8 +278,8 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
          if messages[ id ].IsOversize() == true {
             deleteError := messages[ id ].DeleteOversizeMessage( )
             if deleteError != nil {
+               log.Printf( "WARNING: failed deleting oversize message" )
                ops[ id ] = false
-               err = OneOrMoreOperationsUnsuccessfulError
             }
          }
       } else {
@@ -275,7 +287,14 @@ func ( awsi *awsSqsImpl) BatchMessageDelete( queue QueueHandle, messages []Messa
       }
    }
 
-   return ops, err
+   // if any of the operation statuses are failures, return an error indicating so
+   for _, b := range ops {
+      if b == false {
+         return ops, OneOrMoreOperationsUnsuccessfulError
+      }
+   }
+
+   return ops, nil
 }
 
 //

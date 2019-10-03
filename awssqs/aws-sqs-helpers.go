@@ -10,9 +10,8 @@ import (
 // log a warning if any SQS request takes longer than this
 var warnIfRequestTakesLonger = int64( 250 )
 
-//
-// Other helper methods
-//
+// construct an AWS send structure when provided a message
+// the index value is used to differentiate requests when they are made in blocks
 func constructSend( message Message, index int ) * sqs.SendMessageBatchRequestEntry {
 
    return &sqs.SendMessageBatchRequestEntry{
@@ -22,6 +21,8 @@ func constructSend( message Message, index int ) * sqs.SendMessageBatchRequestEn
    }
 }
 
+// construct an AWS delete object when provided a receipt handle
+// the index value is used to differentiate requests when they are made in blocks
 func constructDelete( deleteHandle ReceiptHandle, index int ) * sqs.DeleteMessageBatchRequestEntry {
 
    return &sqs.DeleteMessageBatchRequestEntry{
@@ -41,10 +42,11 @@ func awsAttribsFromMessageAttribs( attribs Attributes ) map[string] * sqs.Messag
    return attributes
 }
 
+// sometimes it is interesting to know if our SQS queries are slow
 func warnIfSlow( elapsed int64, prefix string ) {
 
    if elapsed >= warnIfRequestTakesLonger {
-      log.Printf("WARNING: %s elapsed %d ms", prefix, elapsed)
+      log.Printf("INFO: %s elapsed %d ms", prefix, elapsed)
    }
 }
 
