@@ -604,11 +604,10 @@ func extractAttribute( attribs Attributes, name string ) string {
 
 func attributesSize( attribs Attributes ) uint {
 
-   //var padFactor = 8
+   var padFactor = 3       // a guess at the padding for each string in the attribute set
    sz := uint( 0 )
    for _, a := range attribs {
-//      sz += uint( len( a.Name ) + len( a.Value ) + ( 2 * padFactor ) )
-      sz += uint( len( a.Name ) + len( a.Value ) )
+      sz += uint( len( a.Name ) + len( a.Value ) + ( 2 * padFactor ) )
    }
    return sz
 }

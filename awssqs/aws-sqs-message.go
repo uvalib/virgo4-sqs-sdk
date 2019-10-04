@@ -92,11 +92,10 @@ func makeAttributes( attribs map[string] * sqs.MessageAttributeValue  ) Attribut
 // maximum message block size imposed by AWS
 func ( m * Message ) Size( ) uint {
 
-//   var padFactor = 8
+   var padFactor = 3                   // a guess at the padding for each string in the attribute set
    sz := uint( len( m.Payload ) )
    for _, a := range m.Attribs {
-//      sz += uint( len( a.Name ) + len( a.Value ) + ( 2 * padFactor ) )
-      sz += uint( len( a.Name ) + len( a.Value ) )
+      sz += uint( len( a.Name ) + len( a.Value ) + ( 2 * padFactor ) )
    }
    return sz
 }
