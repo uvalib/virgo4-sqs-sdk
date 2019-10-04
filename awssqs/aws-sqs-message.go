@@ -28,7 +28,7 @@ func MakeMessage( awsMessage sqs.Message ) ( * Message, error ) {
    message := &Message{
       ReceiptHandle: ReceiptHandle( *awsMessage.ReceiptHandle ),
       Attribs:       makeAttributes( awsMessage.MessageAttributes ),
-      Payload:       Payload( *awsMessage.Body ),
+      Payload:       []byte( *awsMessage.Body ),
    }
 
    // check to see if this is a special 'oversize' message which stores the payload in S3, if it is, do the necessary processing
@@ -176,7 +176,7 @@ func ( m * Message ) GetReceiptHandle( ) ReceiptHandle {
 //
 
 // decode the S3 marker object from the supplied payload
-func ( m * Message ) decodeS3Marker( payload Payload ) ( * S3Marker, error ) {
+func ( m * Message ) decodeS3Marker( payload []byte ) ( * S3Marker, error ) {
 
    s3Marker := S3Marker{ }
    err := json.Unmarshal( payload, &s3Marker)

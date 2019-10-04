@@ -558,7 +558,7 @@ func makeStandardMessage( ) Message {
 
    attributes := make( []Attribute, 0, 1 )
    attributes = append( attributes, Attribute{ "type", "text" } )
-   return Message{ Attribs: attributes, Payload: Payload( fmt.Sprintf( "this is message at %s", time.Now( ) ) )}
+   return Message{ Attribs: attributes, Payload: []byte( fmt.Sprintf( "this is message at %s", time.Now( ) ) )}
 }
 
 func makeSmallMessage( ) Message {
@@ -568,7 +568,7 @@ func makeSmallMessage( ) Message {
    attributes := make( []Attribute, 0, 2 )
    attributes = append( attributes, Attribute{ "type", "text" } )
    attributes = append( attributes, Attribute{ "hash", hash } )
-   return Message{ Attribs: attributes, Payload: Payload( payload ) }
+   return Message{ Attribs: attributes, Payload: payload }
 }
 
 func makeLargeMessage( ) Message {
@@ -578,7 +578,7 @@ func makeLargeMessage( ) Message {
    attributes := make( []Attribute, 0, 2 )
    attributes = append( attributes, Attribute{ "type", "text" } )
    attributes = append( attributes, Attribute{ "hash", hash } )
-   return Message{ Attribs: attributes, Payload: Payload( payload ) }
+   return Message{ Attribs: attributes, Payload: payload }
 }
 
 func verifyMessages( t *testing.T, messages [] Message ) {

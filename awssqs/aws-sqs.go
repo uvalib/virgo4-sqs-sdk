@@ -41,12 +41,11 @@ type Attribute struct {
 }
 
 type Attributes []Attribute
-type Payload []byte
 
 type Message struct {
    Attribs       Attributes
    ReceiptHandle ReceiptHandle
-   Payload       Payload
+   Payload       []byte
 
    // used by the implementation
    oversize bool
