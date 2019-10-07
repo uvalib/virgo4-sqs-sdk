@@ -164,7 +164,7 @@ func ( awsi * awsSqsImpl) BatchMessagePut( queue QueueHandle, messages []Message
       log.Printf( "WARNING: blocksize too large, splitting at %d", half )
       op1, err1 := awsi.BatchMessagePut( queue, messages[ 0:half ] )
       op2, err2 := awsi.BatchMessagePut( queue, messages[ half: ] )
-      copy( op1, op2 )
+      op1 = append( op1, op2... )
       if err1 != nil {
          return op1, err1
       } else {
