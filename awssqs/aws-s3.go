@@ -1,97 +1,97 @@
 package awssqs
 
 import (
-   "bytes"
-   "log"
-   "time"
+	"bytes"
+	"log"
+	"time"
 
-   "github.com/google/uuid"
-   "github.com/aws/aws-sdk-go/aws"
-   "github.com/aws/aws-sdk-go/aws/session"
-   "github.com/aws/aws-sdk-go/service/s3"
-   "github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/google/uuid"
 )
 
-var downloader * s3manager.Downloader
-var uploader * s3manager.Uploader
-var s3service * s3.S3
+var downloader *s3manager.Downloader
+var uploader *s3manager.Uploader
+var s3service *s3.S3
 
 // set up our S3 management objects
-func init( ) {
+func init() {
 
-   sess, err := session.NewSession( )
-   if err == nil {
-      uploader = s3manager.NewUploader( sess )
-      downloader = s3manager.NewDownloader( sess )
-      s3service = s3.New( sess )
-   }
+	sess, err := session.NewSession()
+	if err == nil {
+		uploader = s3manager.NewUploader(sess)
+		downloader = s3manager.NewDownloader(sess)
+		s3service = s3.New(sess)
+	}
 }
 
 // add the buffer to a new S3 object and return the object key
-func s3Add( bucket string, contents []byte ) ( string, error ) {
+func s3Add(bucket string, contents []byte) (string, error) {
 
-   key := uuid.New( ).String( )
+	key := uuid.New().String()
 
-   log.Printf( "INFO: uploading to s3://%s/%s (%d bytes)", bucket, key, len( contents ) )
+	log.Printf("INFO: uploading to s3://%s/%s (%d bytes)", bucket, key, len(contents))
 
-   upParams := &s3manager.UploadInput{
-      Bucket: &bucket,
-      Key:    &key,
-      Body:   bytes.NewReader( contents ),
-   }
+	upParams := &s3manager.UploadInput{
+		Bucket: &bucket,
+		Key:    &key,
+		Body:   bytes.NewReader(contents),
+	}
 
-   start := time.Now()
+	start := time.Now()
 
-   // Perform an upload.
-   _, err := uploader.Upload(upParams)
-   if err != nil {
-      return "", err
-   }
+	// Perform an upload.
+	_, err := uploader.Upload(upParams)
+	if err != nil {
+		return "", err
+	}
 
-   duration := time.Since(start)
-   log.Printf("INFO: upload of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds() )
+	duration := time.Since(start)
+	log.Printf("INFO: upload of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds())
 
-   return key, nil
+	return key, nil
 }
 
 // read the contents from the specified S3 object returning a buffer to the contents
-func s3Get( bucket string, key string, size int ) ( []byte, error ) {
+func s3Get(bucket string, key string, size int) ([]byte, error) {
 
-   log.Printf( "INFO: downloading from s3://%s/%s (%d bytes)", bucket, key, size )
+	log.Printf("INFO: downloading from s3://%s/%s (%d bytes)", bucket, key, size)
 
-   start := time.Now()
+	start := time.Now()
 
-   buff := &aws.WriteAtBuffer{}
-   _, err := downloader.Download( buff,
-      &s3.GetObjectInput{
-         Bucket: aws.String(bucket),
-         Key:    aws.String(key),
-      })
+	buff := &aws.WriteAtBuffer{}
+	_, err := downloader.Download(buff,
+		&s3.GetObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		})
 
-   if err != nil {
-      return nil, err
-   }
+	if err != nil {
+		return nil, err
+	}
 
-   duration := time.Since(start)
-   log.Printf("INFO: download of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds() )
+	duration := time.Since(start)
+	log.Printf("INFO: download of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds())
 
-   return buff.Bytes(), nil
+	return buff.Bytes(), nil
 }
 
 // delete the specified S3 object
-func s3Delete( bucket string, key string ) error {
+func s3Delete(bucket string, key string) error {
 
-   log.Printf( "INFO: deleting s3://%s/%s", bucket, key )
+	log.Printf("INFO: deleting s3://%s/%s", bucket, key)
 
-   start := time.Now()
-   _, err := s3service.DeleteObject( &s3.DeleteObjectInput{ Bucket: aws.String(bucket), Key: aws.String( key ) } )
-   if err != nil {
-      return err
-   }
+	start := time.Now()
+	_, err := s3service.DeleteObject(&s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	if err != nil {
+		return err
+	}
 
-   duration := time.Since(start)
-   log.Printf("INFO: delete of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds() )
-   return nil
+	duration := time.Since(start)
+	log.Printf("INFO: delete of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds())
+	return nil
 }
 
 //
