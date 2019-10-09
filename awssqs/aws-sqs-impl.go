@@ -154,19 +154,16 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 
 	// calculate the total block size and the number of messages that are larger than the maximum message size
 	var totalSize uint = 0
-	for _, m := range messages {
-		totalSize += m.Size()
+	for ix, _ := range messages {
+		totalSize += messages[ix].Size()
 	}
 
 	// if the total block size is too large then we can split the block in half and handle each one individually
 	if totalSize > MAX_SQS_BLOCK_SIZE {
 		half := sz / 2
 		if half == 0 {
-			// an insane situation, debug and bomb out
-			//log.Printf("ERROR: cannot split further, aborting")
-			log.Printf("Message size = %d", totalSize)
-			log.Printf("Message count = %d", len( messages))
-			log.Fatalf( "ERROR: cannot split further, aborting" )
+			// an insane situation, bomb out
+			log.Fatalf( "ERROR: cannot split block further, aborting" )
 		}
 		log.Printf("WARNING: blocksize too large, splitting at %d", half)
 		op1, err1 := awsi.BatchMessagePut(queue, messages[0:half])

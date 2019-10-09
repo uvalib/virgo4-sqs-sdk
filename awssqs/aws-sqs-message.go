@@ -97,7 +97,7 @@ func (m *Message) Size() uint {
 	for _, a := range m.Attribs {
 		sz += uint(len(a.Name) + len(a.Value) + (2 * padFactor))
 	}
-	log.Printf( "INFO: reporting size %d", sz )
+	//log.Printf( "INFO: reporting size %d", sz )
 	return sz
 }
 
@@ -132,7 +132,7 @@ func (m *Message) ConvertToOversizeMessage(bucket string) error {
 		return nil
 	}
 
-	log.Printf( "INFO: converting oversize message" )
+	//log.Printf( "INFO: converting oversize message" )
 
 	// add the contents to S3
 	key, err := s3Add(bucket, m.Payload)
