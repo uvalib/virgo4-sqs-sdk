@@ -161,6 +161,12 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 	// if the total block size is too large then we can split the block in half and handle each one individually
 	if totalSize > MAX_SQS_BLOCK_SIZE {
 		half := sz / 2
+		if half == 0 {
+			// an insane situation, debug and bomb out
+			log.Printf("ERROR: cannot split further, aborting")
+			log.Printf("Message size = %d", totalSize)
+			log.Printf("Message count = %d", len( messages))
+		}
 		log.Printf("WARNING: blocksize too large, splitting at %d", half)
 		op1, err1 := awsi.BatchMessagePut(queue, messages[0:half])
 		op2, err2 := awsi.BatchMessagePut(queue, messages[half:])
