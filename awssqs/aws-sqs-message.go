@@ -227,7 +227,7 @@ func (m *Message) splitEnhancedReceiptHandle(receiptHandle ReceiptHandle) (strin
 	if len(bucketTokens) == 3 {
 		bucket = bucketTokens[1]
 	} else {
-		log.Printf("WARNING: expected to find bucket value in receipe handle but did not")
+		log.Printf("WARNING: cannot find bucket value in receipt handle")
 	}
 
 	// do we have what we need to extract the key name and original receipt handle
@@ -235,7 +235,7 @@ func (m *Message) splitEnhancedReceiptHandle(receiptHandle ReceiptHandle) (strin
 		key = keyTokens[1]
 		receipt = ReceiptHandle(keyTokens[2])
 	} else {
-		log.Printf("WARNING: expected to find key value in receipe handle but did not")
+		log.Printf("WARNING: cannot find key value in receipt handle")
 	}
 
 	return bucket, key, receipt

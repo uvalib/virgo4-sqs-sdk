@@ -165,7 +165,7 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 			// an insane situation, bomb out
 			log.Fatalf( "ERROR: cannot split block further, aborting" )
 		}
-		log.Printf("WARNING: blocksize too large, splitting at %d", half)
+		log.Printf("INFO: blocksize too large, splitting at %d", half)
 		op1, err1 := awsi.BatchMessagePut(queue, messages[0:half])
 		op2, err2 := awsi.BatchMessagePut(queue, messages[half:])
 		op1 = append(op1, op2...)
@@ -205,7 +205,7 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 	}
 
 	for _, f := range response.Failed {
-		log.Printf("ERROR: ID %s send not successful (%s)", *f.Id, *f.Message)
+		log.Printf("WARNING: ID %s send not successful (%s)", *f.Id, *f.Message)
 		id, converr := strconv.Atoi(*f.Id)
 		if converr == nil && id < sz {
 			ops[id] = false
@@ -266,12 +266,12 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 	}
 
 	for _, f := range response.Failed {
-		log.Printf("ERROR: ID %s delete not successful (%s)", *f.Id, *f.Message)
+		log.Printf("WARNING: ID %s delete not successful (%s)", *f.Id, *f.Message)
 		id, converr := strconv.Atoi(*f.Id)
 		if converr == nil && uint(id) < sz {
 			ops[id] = false
 		} else {
-			log.Printf("ERROR: Suspect ID %s delete not successful", *f.Id)
+			log.Printf("WARNING: Suspect ID %s in delete response", *f.Id)
 		}
 	}
 
@@ -287,7 +287,7 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 				}
 			}
 		} else {
-			log.Printf("ERROR: Suspect ID %s delete not successful", *f.Id)
+			log.Printf("WARNING: Suspect ID %s in delete response", *f.Id)
 		}
 	}
 
