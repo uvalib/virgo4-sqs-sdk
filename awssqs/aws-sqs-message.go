@@ -32,8 +32,8 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 	}
 
 	// check to see if this is a special 'oversize' message which stores the payload in S3, if it is, do the necessary processing
-	s3size := message.getAttribute(oversizeMessageAttributeName)
-	if len(s3size) != 0 {
+	s3size, found := message.GetAttribute(oversizeMessageAttributeName)
+	if found == true {
 
 		//log.Printf( "INFO: constructing oversize message" )
 
@@ -172,6 +172,26 @@ func (m *Message) GetReceiptHandle() ReceiptHandle {
 	return m.getNativeReceiptHandle(m.ReceiptHandle)
 }
 
+// get an attribute
+func (m *Message) GetAttribute( attribute string ) ( string, bool ) {
+
+	for _, a := range m.Attribs {
+		if a.Name == attribute {
+			return a.Value, true
+		}
+	}
+	return "", false
+}
+
+// clone the content but none of the internal state
+func (m *Message) ContentClone( ) * Message {
+
+	newMessage := &Message{}
+	newMessage.Attribs = m.Attribs
+	newMessage.Payload = m.Payload
+	return newMessage
+}
+
 //
 // implementation methods
 //
@@ -244,16 +264,6 @@ func (m *Message) splitEnhancedReceiptHandle(receiptHandle ReceiptHandle) (strin
 func (m *Message) makeEnhancedReceiptHandle(bucket string, key string, receiptHandle ReceiptHandle) ReceiptHandle {
 	return ReceiptHandle(bucketNameMarker+bucket+bucketNameMarker+
 		bucketKeyMarker+key+bucketKeyMarker) + receiptHandle
-}
-
-func (m *Message) getAttribute(attribute string) string {
-
-	for _, a := range m.Attribs {
-		if a.Name == attribute {
-			return a.Value
-		}
-	}
-	return ""
 }
 
 func (m *Message) addAttribute(attribute string, value string) bool {

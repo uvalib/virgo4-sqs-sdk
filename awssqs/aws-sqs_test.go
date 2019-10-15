@@ -584,22 +584,15 @@ func makeLargeMessage() Message {
 func verifyMessages(t *testing.T, messages []Message) {
 
 	for _, m := range messages {
-		reportedHash := extractAttribute(m.Attribs, "hash")
+		reportedHash, found := m.GetAttribute("hash")
+		if found == false {
+			t.Fatalf("Expected to find the 'hash' attribute but did not\n")
+		}
 		actualHash := fmt.Sprintf("%x", md5.Sum([]byte(m.Payload)))
 		if actualHash != reportedHash {
 			t.Fatalf("Message signatures do not match (expected: %s, actual %s)\n", reportedHash, actualHash)
 		}
 	}
-}
-
-func extractAttribute(attribs Attributes, name string) string {
-
-	for _, a := range attribs {
-		if a.Name == name {
-			return a.Value
-		}
-	}
-	return ""
 }
 
 func attributesSize(attribs Attributes) uint {
