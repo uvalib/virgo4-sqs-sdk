@@ -2,6 +2,7 @@ package awssqs
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"log"
 	"strconv"
@@ -11,14 +12,25 @@ import (
 // support for large messages (using S3)
 // this is a copy of the Java implementation for compatibility. See https://github.com/awslabs/amazon-sqs-java-extended-client-lib
 var oversizeMessageAttributeName = "SQSLargePayloadSize"
-var bucketNameMarker = "-..s3BucketName..-"
-var bucketKeyMarker = "-..s3Key..-"
+var bucketNameMarker             = "-..s3BucketName..-"
+var bucketKeyMarker              = "-..s3Key..-"
 
-// this is the json structure we use as a payload when the true payload lives in S3
-type S3Marker struct {
-	Bucket string `json:"s3_bucket_name"`
-	Key    string `json:"s3_key"`
-}
+var s3BucketMapKeyValue          = "s3BucketName"
+var s3KeyMapKeyValue             = "s3Key"
+var s3MarkerTag                  = "com.amazon.sqs.javamessaging.MessageS3Pointer"
+
+//
+// we need to be compatible with the Java library that provides oversize message support... this is an example of the
+// structure they write
+//
+// [ "com.amazon.sqs.javamessaging.MessageS3Pointer",
+//   { "s3BucketName":"virgo4-ingest-staging-messages",
+//     "s3Key":"9b9e4bc4-8bd8-4527-a25e-818f17dd5aab"
+//   }
+// ]
+//
+//
+type S3MarkerPayload[2] interface{}
 
 //
 // our message factory based on a message from AWS
@@ -42,16 +54,16 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 
 		// mark as oversize and extract the S3 marker from the payload which has bucket and key information
 		message.oversize = true
-		s3, err := message.decodeS3Marker(message.Payload)
+		bucket, key, err := message.decodeS3MarkerInformation(message.Payload)
 		if err != nil {
 			return nil, err
 		}
 
 		// construct the new receipt handle... we overload it with bucket and key information
-		newReceiptHandle := message.makeEnhancedReceiptHandle(s3.Bucket, s3.Key, message.ReceiptHandle)
+		newReceiptHandle := message.makeEnhancedReceiptHandle(bucket, key, message.ReceiptHandle)
 
 		// get the actual message contents from S3
-		contents, err := s3Get(s3.Bucket, s3.Key, sz)
+		contents, err := s3Get(bucket, key, sz)
 		if err != nil {
 			return nil, err
 		}
@@ -141,10 +153,7 @@ func (m *Message) ConvertToOversizeMessage(bucket string) error {
 	}
 
 	// create the replacement contents for the message
-	contents, err := m.encodeS3Marker(bucket, key)
-	if err != nil {
-		return err
-	}
+	contents := m.encodeS3MarkerInformation(bucket, key)
 
 	// create the enhanced receipt handle
 	m.ReceiptHandle = m.makeEnhancedReceiptHandle(bucket, key, m.ReceiptHandle)
@@ -196,28 +205,37 @@ func (m *Message) ContentClone( ) * Message {
 // implementation methods
 //
 
-// decode the S3 marker object from the supplied payload
-func (m *Message) decodeS3Marker(payload []byte) (*S3Marker, error) {
+// decode the S3 marker information from the supplied payload
+func (m *Message) decodeS3MarkerInformation(payload []byte) (string, string, error) {
 
-	s3Marker := S3Marker{}
-	err := json.Unmarshal(payload, &s3Marker)
+	s3MarkerPayload := S3MarkerPayload{}
+	err := json.Unmarshal([]byte( payload ), &s3MarkerPayload)
 	if err != nil {
 		log.Printf("ERROR: json unmarshal: %s", err)
-		return nil, err
+		return "", "", err
 	}
-	return &s3Marker, nil
+
+	s3, ok := s3MarkerPayload[1].(map[string]interface{})
+	if ok == false {
+		log.Printf("ERROR: type assertion error in decodeS3MarkerInformation" )
+		return "", "", fmt.Errorf( "type assertion error")
+	}
+
+	// wildly optimistic that these assertions will not fail
+	bucket, _ := s3[s3BucketMapKeyValue].(string)
+	key, _ := s3[s3KeyMapKeyValue].(string)
+	return bucket, key, nil
 }
 
-// encode an S3 marker object based on the supplied bucket information
-func (m *Message) encodeS3Marker(bucket string, key string) ([]byte, error) {
+// encode the S3 marker information based on the supplied bucket information
+func (m *Message) encodeS3MarkerInformation(bucket string, key string) []byte {
 
-	s3Marker := S3Marker{Bucket: bucket, Key: key}
-	bytes, err := json.Marshal(s3Marker)
-	if err != nil {
-		log.Printf("ERROR: json marshal: %s", err)
-		return nil, err
-	}
-	return bytes, nil
+	return []byte( fmt.Sprintf("[\"%s\",{\"%s\":\"%s\",\"%s\":\"%s\"}]",
+		s3MarkerTag,
+		s3BucketMapKeyValue,
+		bucket,
+		s3KeyMapKeyValue,
+		key ) )
 }
 
 // extract the bucket attributes from the enhanced receipt handle according to the standard format
