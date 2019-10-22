@@ -12,12 +12,12 @@ import (
 // support for large messages (using S3)
 // this is a copy of the Java implementation for compatibility. See https://github.com/awslabs/amazon-sqs-java-extended-client-lib
 var oversizeMessageAttributeName = "SQSLargePayloadSize"
-var bucketNameMarker             = "-..s3BucketName..-"
-var bucketKeyMarker              = "-..s3Key..-"
+var bucketNameMarker = "-..s3BucketName..-"
+var bucketKeyMarker = "-..s3Key..-"
 
-var s3BucketMapKeyValue          = "s3BucketName"
-var s3KeyMapKeyValue             = "s3Key"
-var s3MarkerTag                  = "com.amazon.sqs.javamessaging.MessageS3Pointer"
+var s3BucketMapKeyValue = "s3BucketName"
+var s3KeyMapKeyValue = "s3Key"
+var s3MarkerTag = "com.amazon.sqs.javamessaging.MessageS3Pointer"
 
 //
 // we need to be compatible with the Java library that provides oversize message support... this is an example of the
@@ -30,7 +30,7 @@ var s3MarkerTag                  = "com.amazon.sqs.javamessaging.MessageS3Pointe
 // ]
 //
 //
-type S3MarkerPayload[2] interface{}
+type S3MarkerPayload [2]interface{}
 
 //
 // our message factory based on a message from AWS
@@ -182,7 +182,7 @@ func (m *Message) GetReceiptHandle() ReceiptHandle {
 }
 
 // get an attribute
-func (m *Message) GetAttribute( attribute string ) ( string, bool ) {
+func (m *Message) GetAttribute(attribute string) (string, bool) {
 
 	for _, a := range m.Attribs {
 		if a.Name == attribute {
@@ -193,7 +193,7 @@ func (m *Message) GetAttribute( attribute string ) ( string, bool ) {
 }
 
 // clone the content but none of the internal state
-func (m *Message) ContentClone( ) * Message {
+func (m *Message) ContentClone() *Message {
 
 	newMessage := &Message{}
 	newMessage.Attribs = m.Attribs
@@ -209,7 +209,7 @@ func (m *Message) ContentClone( ) * Message {
 func (m *Message) decodeS3MarkerInformation(payload []byte) (string, string, error) {
 
 	s3MarkerPayload := S3MarkerPayload{}
-	err := json.Unmarshal([]byte( payload ), &s3MarkerPayload)
+	err := json.Unmarshal([]byte(payload), &s3MarkerPayload)
 	if err != nil {
 		log.Printf("ERROR: json unmarshal: %s", err)
 		return "", "", err
@@ -217,8 +217,8 @@ func (m *Message) decodeS3MarkerInformation(payload []byte) (string, string, err
 
 	s3, ok := s3MarkerPayload[1].(map[string]interface{})
 	if ok == false {
-		log.Printf("ERROR: type assertion error in decodeS3MarkerInformation" )
-		return "", "", fmt.Errorf( "type assertion error")
+		log.Printf("ERROR: type assertion error in decodeS3MarkerInformation")
+		return "", "", fmt.Errorf("type assertion error")
 	}
 
 	// wildly optimistic that these assertions will not fail
@@ -230,12 +230,12 @@ func (m *Message) decodeS3MarkerInformation(payload []byte) (string, string, err
 // encode the S3 marker information based on the supplied bucket information
 func (m *Message) encodeS3MarkerInformation(bucket string, key string) []byte {
 
-	return []byte( fmt.Sprintf("[\"%s\",{\"%s\":\"%s\",\"%s\":\"%s\"}]",
+	return []byte(fmt.Sprintf("[\"%s\",{\"%s\":\"%s\",\"%s\":\"%s\"}]",
 		s3MarkerTag,
 		s3BucketMapKeyValue,
 		bucket,
 		s3KeyMapKeyValue,
-		key ) )
+		key))
 }
 
 // extract the bucket attributes from the enhanced receipt handle according to the standard format

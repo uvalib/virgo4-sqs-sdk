@@ -29,6 +29,17 @@ var BadReceiptHandleError = fmt.Errorf("Receipt handle format is incorrect for l
 var MismatchedContentsSize = fmt.Errorf("Actual S3 message size differs from expected size")
 var MissingConfiguration = fmt.Errorf("Configuration information is incomplete")
 
+// standard attribute keys and values
+var AttributeKeyRecordId = "id"
+var AttributeKeyRecordType = "type"
+var AttributeKeyRecordSource = "source"
+var AttributeKeyRecordOperation = "operation"
+
+var AttributeValueRecordTypeB64Marc = "base64/marc"
+var AttributeValueRecordTypeXml = "xml"
+var AttributeValueRecordOperationUpdate = "update"
+var AttributeValueRecordOperationDelete = "delete"
+
 // simplifications
 type QueueHandle string
 type ReceiptHandle string
