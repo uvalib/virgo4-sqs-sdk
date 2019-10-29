@@ -2,6 +2,7 @@ package awssqs
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"time"
 
@@ -31,8 +32,9 @@ func init() {
 func s3Add(bucket string, contents []byte) (string, error) {
 
 	key := uuid.New().String()
+	contentSize := len( contents )
 
-	log.Printf("INFO: uploading to s3://%s/%s (%d bytes)", bucket, key, len(contents))
+	log.Printf("INFO: uploading to s3://%s/%s (%d bytes)", bucket, key, contentSize)
 
 	upParams := &s3manager.UploadInput{
 		Bucket: &bucket,
@@ -48,6 +50,11 @@ func s3Add(bucket string, contents []byte) (string, error) {
 		return "", err
 	}
 
+	// we validate the expected file size against the actually uploaded size
+	//if int64( contentSize ) != uploadSize {
+	//	return nil, fmt.Errorf("upload failure. expected %d bytes, actual %d bytes", contentSize, uploadSize)
+	//}
+
 	duration := time.Since(start)
 	log.Printf("INFO: upload of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds())
 
@@ -55,14 +62,14 @@ func s3Add(bucket string, contents []byte) (string, error) {
 }
 
 // read the contents from the specified S3 object returning a buffer to the contents
-func s3Get(bucket string, key string, size int) ([]byte, error) {
+func s3Get(bucket string, key string, expectedSize int) ([]byte, error) {
 
-	log.Printf("INFO: downloading from s3://%s/%s (%d bytes)", bucket, key, size)
+	log.Printf("INFO: downloading from s3://%s/%s (%d bytes)", bucket, key, expectedSize)
 
 	start := time.Now()
 
 	buff := &aws.WriteAtBuffer{}
-	_, err := downloader.Download(buff,
+	downloadSize, err := downloader.Download(buff,
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
@@ -70,6 +77,11 @@ func s3Get(bucket string, key string, size int) ([]byte, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	// we validate the expected file size against the actually downloaded size
+	if int64( expectedSize ) != downloadSize {
+		return nil, fmt.Errorf("download failure. expected %d bytes, received %d bytes", expectedSize, downloadSize)
 	}
 
 	duration := time.Since(start)
