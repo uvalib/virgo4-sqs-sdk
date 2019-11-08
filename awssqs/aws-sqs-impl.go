@@ -28,7 +28,7 @@ func newAwsSqs(config AwsSqsConfig) (AWS_SQS, error) {
 
 	// validate the inbound configuration
 	if len(config.MessageBucketName) == 0 {
-		return nil, MissingConfiguration
+		return nil, ErrMissingConfiguration
 	}
 
 	sess, err := session.NewSession()
@@ -51,7 +51,7 @@ func (awsi *awsSqsImpl) QueueHandle(queueName string) (QueueHandle, error) {
 
 	if err != nil {
 		if strings.HasPrefix(err.Error(), sqs.ErrCodeQueueDoesNotExist) {
-			return "", BadQueueNameError
+			return "", ErrBadQueueName
 		}
 		return "", err
 	}
@@ -65,12 +65,12 @@ func (awsi *awsSqsImpl) BatchMessageGet(queue QueueHandle, maxMessages uint, wai
 
 	// ensure the block size is not too large
 	if maxMessages > MAX_SQS_BLOCK_COUNT {
-		return emptyMessageList, BlockCountTooLargeError
+		return emptyMessageList, ErrBlockCountTooLarge
 	}
 
 	// ensure the wait time is not too large
 	if waitTime.Seconds() > float64(MAX_SQS_WAIT_TIME) {
-		return emptyMessageList, WaitTooLargeError
+		return emptyMessageList, ErrWaitTooLarge
 	}
 
 	q := string(queue)
@@ -91,7 +91,7 @@ func (awsi *awsSqsImpl) BatchMessageGet(queue QueueHandle, maxMessages uint, wai
 
 	if err != nil {
 		if strings.HasPrefix(err.Error(), invalidAddressErrorPrefix) {
-			return emptyMessageList, BadQueueHandleError
+			return emptyMessageList, ErrBadQueueHandle
 		}
 		return emptyMessageList, err
 	}
@@ -131,15 +131,15 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 
 	// ensure the block size is not too large
 	if uint(sz) > MAX_SQS_BLOCK_COUNT {
-		return emptyOpList, BlockCountTooLargeError
+		return emptyOpList, ErrBlockCountTooLarge
 	}
 
 	// our operation status array
-	ops := make([]OpStatus, sz, sz)
+	ops := make([]OpStatus, sz)
 
 	// initialize the operation status array to all successful and convert any
 	// oversize messages (use index access to the array because this updates the messages)
-	for ix, _ := range messages {
+	for ix := range messages {
 		ops[ix] = true
 
 		sz := messages[ix].Size()
@@ -154,7 +154,7 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 
 	// calculate the total block size and the number of messages that are larger than the maximum message size
 	var totalSize uint = 0
-	for ix, _ := range messages {
+	for ix := range messages {
 		totalSize += messages[ix].Size()
 	}
 
@@ -199,7 +199,7 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 
 	if err != nil {
 		if strings.HasPrefix(err.Error(), invalidAddressErrorPrefix) {
-			return emptyOpList, BadQueueHandleError
+			return emptyOpList, ErrBadQueueHandle
 		}
 		return emptyOpList, err
 	}
@@ -215,7 +215,7 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 	// if any of the operation statuses are failures, return an error indicating so
 	for _, b := range ops {
 		if b == false {
-			return ops, OneOrMoreOperationsUnsuccessfulError
+			return ops, ErrOneOrMoreOperationsUnsuccessful
 		}
 	}
 
@@ -234,13 +234,13 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 
 	// ensure the block size is not too large
 	if sz > MAX_SQS_BLOCK_COUNT {
-		return emptyOpList, BlockCountTooLargeError
+		return emptyOpList, ErrBlockCountTooLarge
 	}
 
 	q := string(queue)
 
 	batch := make([]*sqs.DeleteMessageBatchRequestEntry, 0, sz)
-	ops := make([]OpStatus, sz, sz)
+	ops := make([]OpStatus, sz)
 
 	// the SQS delete loop, initially, assume everything works
 	for ix, m := range messages {
@@ -260,7 +260,7 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 
 	if err != nil {
 		if strings.HasPrefix(err.Error(), invalidAddressErrorPrefix) {
-			return emptyOpList, BadQueueHandleError
+			return emptyOpList, ErrBadQueueHandle
 		}
 		return emptyOpList, err
 	}
@@ -294,7 +294,7 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 	// if any of the operation statuses are failures, return an error indicating so
 	for _, b := range ops {
 		if b == false {
-			return ops, OneOrMoreOperationsUnsuccessfulError
+			return ops, ErrOneOrMoreOperationsUnsuccessful
 		}
 	}
 

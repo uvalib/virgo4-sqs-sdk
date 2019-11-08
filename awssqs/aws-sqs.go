@@ -18,16 +18,16 @@ var MAX_SQS_MESSAGE_SIZE = MAX_SQS_BLOCK_SIZE
 var MAX_SQS_WAIT_TIME = uint(20)
 
 // Errors
-var BlockCountTooLargeError = fmt.Errorf("Block count is too large. Must be %d or less", MAX_SQS_BLOCK_COUNT)
-var BlockTooLargeError = fmt.Errorf("Block size is too large. Must be %d or less", MAX_SQS_BLOCK_SIZE)
-var MessageTooLargeError = fmt.Errorf("Message size is too large. Must be %d or less", MAX_SQS_MESSAGE_SIZE)
-var WaitTooLargeError = fmt.Errorf("Wait time is too large. Must be %d or less", MAX_SQS_WAIT_TIME)
-var BadQueueNameError = fmt.Errorf("Queue name does not exist")
-var BadQueueHandleError = fmt.Errorf("Queue handle is bad")
-var OneOrMoreOperationsUnsuccessfulError = fmt.Errorf("One or more operations were not successful")
-var BadReceiptHandleError = fmt.Errorf("Receipt handle format is incorrect for large message support")
-var MismatchedContentsSize = fmt.Errorf("Actual S3 message size differs from expected size")
-var MissingConfiguration = fmt.Errorf("Configuration information is incomplete")
+var ErrBlockCountTooLarge = fmt.Errorf("block count is too large. Must be %d or less", MAX_SQS_BLOCK_COUNT)
+var ErrBlockTooLarge = fmt.Errorf("block size is too large. Must be %d or less", MAX_SQS_BLOCK_SIZE)
+var ErrMessageTooLarge = fmt.Errorf("message size is too large. Must be %d or less", MAX_SQS_MESSAGE_SIZE)
+var ErrWaitTooLarge = fmt.Errorf("wait time is too large. Must be %d or less", MAX_SQS_WAIT_TIME)
+var ErrBadQueueName = fmt.Errorf("queue name does not exist")
+var ErrBadQueueHandle = fmt.Errorf("queue handle is bad")
+var ErrOneOrMoreOperationsUnsuccessful = fmt.Errorf("one or more operations were not successful")
+var ErrBadReceiptHandle = fmt.Errorf("receipt handle format is incorrect for large message support")
+var ErrMismatchedContentsSize = fmt.Errorf("actual S3 message size differs from expected size")
+var ErrMissingConfiguration = fmt.Errorf("configuration information is incomplete")
 
 // standard attribute keys and values
 var AttributeKeyRecordId = "id"

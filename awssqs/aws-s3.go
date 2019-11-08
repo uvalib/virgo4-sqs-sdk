@@ -32,7 +32,7 @@ func init() {
 func s3Add(bucket string, contents []byte) (string, error) {
 
 	key := uuid.New().String()
-	contentSize := len( contents )
+	contentSize := len(contents)
 
 	log.Printf("INFO: uploading to s3://%s/%s (%d bytes)", bucket, key, contentSize)
 
@@ -80,7 +80,7 @@ func s3Get(bucket string, key string, expectedSize int) ([]byte, error) {
 	}
 
 	// we validate the expected file size against the actually downloaded size
-	if int64( expectedSize ) != downloadSize {
+	if int64(expectedSize) != downloadSize {
 		return nil, fmt.Errorf("download failure. expected %d bytes, received %d bytes", expectedSize, downloadSize)
 	}
 

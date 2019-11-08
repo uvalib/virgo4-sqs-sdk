@@ -189,7 +189,7 @@ func TestQueueHandleBadName(t *testing.T) {
 	}
 
 	_, err = awssqs.QueueHandle(badQueueName)
-	if err != BadQueueNameError {
+	if err != ErrBadQueueName {
 		t.Fatalf("%t\n", err)
 	}
 }
@@ -228,7 +228,7 @@ func TestBatchMessageGetBadQueueHandle(t *testing.T) {
 	}
 
 	_, err = awssqs.BatchMessageGet(badQueueHandle, MAX_SQS_BLOCK_COUNT, goodWaitTime)
-	if err != BadQueueHandleError {
+	if err != ErrBadQueueHandle {
 		t.Fatalf("%t\n", err)
 	}
 }
@@ -246,7 +246,7 @@ func TestBatchMessageGetBadBlockSize(t *testing.T) {
 	}
 
 	_, err = awssqs.BatchMessageGet(queueHandle, MAX_SQS_BLOCK_COUNT+1, goodWaitTime)
-	if err != BlockCountTooLargeError {
+	if err != ErrBlockCountTooLarge {
 		t.Fatalf("%t\n", err)
 	}
 }
@@ -264,7 +264,7 @@ func TestBatchMessageGetBadWaitTime(t *testing.T) {
 	}
 
 	_, err = awssqs.BatchMessageGet(queueHandle, MAX_SQS_BLOCK_COUNT, badWaitTime)
-	if err != WaitTooLargeError {
+	if err != ErrWaitTooLarge {
 		t.Fatalf("%t\n", err)
 	}
 }
@@ -306,7 +306,7 @@ func TestBatchMessagePutBadQueueHandle(t *testing.T) {
 	count := uint(1)
 	messages := makeStandardMessages(count)
 	ops, err := awssqs.BatchMessagePut(badQueueHandle, messages)
-	if err != BadQueueHandleError {
+	if err != ErrBadQueueHandle {
 		t.Fatalf("%t\n", err)
 	}
 	if allOperationsOK(ops) == false {
@@ -329,7 +329,7 @@ func TestBatchMessagePutBadBlockCount(t *testing.T) {
 	count := MAX_SQS_BLOCK_COUNT + 1
 	messages := makeStandardMessages(count)
 	ops, err := awssqs.BatchMessagePut(queueHandle, messages)
-	if err != BlockCountTooLargeError {
+	if err != ErrBlockCountTooLarge {
 		t.Fatalf("%t\n", err)
 	}
 	if allOperationsOK(ops) == false {
@@ -387,7 +387,7 @@ func TestBatchMessageDeleteBadQueueHandle(t *testing.T) {
 	count := uint(1)
 	messages := makeStandardMessages(count)
 	_, err = awssqs.BatchMessageDelete(badQueueHandle, messages)
-	if err != BadQueueHandleError {
+	if err != ErrBadQueueHandle {
 		t.Fatalf("%t\n", err)
 	}
 }
@@ -407,7 +407,7 @@ func TestBatchMessageDeleteBadBlockCount(t *testing.T) {
 	count := MAX_SQS_BLOCK_COUNT + 1
 	messages := makeStandardMessages(count)
 	_, err = awssqs.BatchMessageDelete(queueHandle, messages)
-	if err != BlockCountTooLargeError {
+	if err != ErrBlockCountTooLarge {
 		t.Fatalf("%t\n", err)
 	}
 }
@@ -429,7 +429,7 @@ func TestBatchMessageDeleteBadReceiptHandle(t *testing.T) {
 	messages[0].ReceiptHandle = badReceiptHandle
 
 	ops, err := awssqs.BatchMessageDelete(queueHandle, messages)
-	if err != OneOrMoreOperationsUnsuccessfulError {
+	if err != ErrOneOrMoreOperationsUnsuccessful {
 		t.Fatalf("%t\n", err)
 	}
 	if ops[0] == true {
@@ -482,9 +482,7 @@ func exactMessageGet(t *testing.T, awssqs AWS_SQS, handle QueueHandle, count uin
 		if err != nil {
 			t.Fatalf("%t\n", err)
 		}
-		for _, m := range messages {
-			result = append(result, m)
-		}
+		result = append(result, messages...)
 
 		// we have the expected number of messages
 		if uint(len(result)) == count {

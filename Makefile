@@ -20,3 +20,7 @@ fmt:
 
 vet:
 	cd $(PACKAGENAME); $(GOVET)
+
+check:
+	go get honnef.co/go/tools/cmd/staticcheck
+	cd $(PACKAGENAME); ~/go/bin/staticcheck -checks all,-ST1000,-S1002,-ST1003,-ST1020,-ST1021,-ST1022 *.go

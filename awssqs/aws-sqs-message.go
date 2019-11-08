@@ -70,7 +70,7 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 
 		// ensure the actual size of the S3 object we read matches the reported size
 		if len(contents) != sz {
-			return nil, MismatchedContentsSize
+			return nil, ErrMismatchedContentsSize
 		}
 
 		// update the contents of the message (overwriting the S3 marker object there)
@@ -134,7 +134,7 @@ func (m *Message) DeleteOversizeMessage() error {
 		return s3Delete(bucket, key)
 	}
 
-	return BadReceiptHandleError
+	return ErrBadReceiptHandle
 }
 
 func (m *Message) ConvertToOversizeMessage(bucket string) error {
