@@ -68,8 +68,9 @@ func s3Get(bucket string, key string, expectedSize int) ([]byte, error) {
 
 	start := time.Now()
 
-	buff := &aws.WriteAtBuffer{}
-	downloadSize, err := downloader.Download(buff,
+	backingBuff := make( []byte, 0, expectedSize )
+	writeAtBuff := aws.NewWriteAtBuffer( backingBuff )
+	downloadSize, err := downloader.Download(writeAtBuff,
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
@@ -87,7 +88,7 @@ func s3Get(bucket string, key string, expectedSize int) ([]byte, error) {
 	duration := time.Since(start)
 	log.Printf("INFO: download of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds())
 
-	return buff.Bytes(), nil
+	return writeAtBuff.Bytes(), nil
 }
 
 // delete the specified S3 object
