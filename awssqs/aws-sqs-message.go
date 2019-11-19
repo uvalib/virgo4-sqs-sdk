@@ -37,11 +37,10 @@ type S3MarkerPayload [2]interface{}
 //
 func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 
-	message := &Message{
-		ReceiptHandle: ReceiptHandle(*awsMessage.ReceiptHandle),
-		Attribs:       makeAttributes(awsMessage.MessageAttributes),
-		Payload:       []byte(*awsMessage.Body),
-	}
+	message := new( Message )
+	message.ReceiptHandle = ReceiptHandle(*awsMessage.ReceiptHandle)
+	message.Attribs       = makeAttributes(awsMessage.MessageAttributes)
+	message.Payload       = []byte(*awsMessage.Body)
 
 	// check to see if this is a special 'oversize' message which stores the payload in S3, if it is, do the necessary processing
 	s3size, found := message.GetAttribute(oversizeMessageAttributeName)
@@ -195,7 +194,7 @@ func (m *Message) GetAttribute(attribute string) (string, bool) {
 // clone the content but none of the internal state
 func (m *Message) ContentClone() *Message {
 
-	newMessage := &Message{}
+	newMessage := new( Message )
 	newMessage.Attribs = m.Attribs
 	newMessage.Payload = m.Payload
 	return newMessage
