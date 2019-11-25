@@ -47,6 +47,7 @@ func s3Add(bucket string, contents []byte) (string, error) {
 	// Perform an upload.
 	_, err := uploader.Upload(upParams)
 	if err != nil {
+		log.Printf("ERROR: uploading to s3://%s/%s (%s)", bucket, key, err.Error())
 		return "", err
 	}
 
@@ -68,8 +69,8 @@ func s3Get(bucket string, key string, expectedSize int) ([]byte, error) {
 
 	start := time.Now()
 
-	backingBuff := make( []byte, 0, expectedSize )
-	writeAtBuff := aws.NewWriteAtBuffer( backingBuff )
+	backingBuff := make([]byte, 0, expectedSize)
+	writeAtBuff := aws.NewWriteAtBuffer(backingBuff)
 	downloadSize, err := downloader.Download(writeAtBuff,
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
@@ -77,6 +78,7 @@ func s3Get(bucket string, key string, expectedSize int) ([]byte, error) {
 		})
 
 	if err != nil {
+		log.Printf("ERROR: downloading from s3://%s/%s (%s)", bucket, key, err.Error())
 		return nil, err
 	}
 
@@ -99,6 +101,7 @@ func s3Delete(bucket string, key string) error {
 	start := time.Now()
 	_, err := s3service.DeleteObject(&s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
 	if err != nil {
+		log.Printf("ERROR: deleting s3://%s/%s (%s)", bucket, key, err.Error())
 		return err
 	}
 
