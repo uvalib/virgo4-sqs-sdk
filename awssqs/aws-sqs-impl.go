@@ -309,6 +309,7 @@ func (awsi *awsSqsImpl) MessagePutRetry(queue QueueHandle, messages []Message, o
 	// if we made it here then there is still operations outstanding and we have run out of attempts.
 	// just return an error
 	if retries == 0 {
+		log.Printf("ERROR: out of retries, giving up")
 		return ErrOneOrMoreOperationsUnsuccessful
 	}
 
