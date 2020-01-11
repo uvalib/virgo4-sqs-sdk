@@ -79,6 +79,11 @@ type AWS_SQS interface {
 	// mark a batch of messages from the specified queue as suitable for delete. This mechanism
 	// prevents messages from being reprocessed.
 	BatchMessageDelete(queue QueueHandle, messages []Message) ([]OpStatus, error)
+
+	// retry a batched put after one or more of the operations fails.
+	// retry the specified amount of times and return an error of after retrying one or messages
+	// has still not been sent successfully.
+	MessagePutRetry(queue QueueHandle, messages []Message, opStatus []OpStatus, retryCount uint) error
 }
 
 // our configuration structure

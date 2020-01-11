@@ -301,6 +301,51 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 	return ops, nil
 }
 
+// retry a batched put after one or more of the operations fails.
+// retry the specified amount of times and return an error of after retrying one or messages
+// has still not been sent successfully.
+func (awsi *awsSqsImpl) MessagePutRetry(queue QueueHandle, messages []Message, opStatus []OpStatus, retries uint) error {
+
+	// if we made it here then there is still operations outstanding and we have run out of attempts.
+	// just return an error
+	if retries == 0 {
+		return ErrOneOrMoreOperationsUnsuccessful
+	}
+
+	// create the retry batch
+	retryBatch := make([]Message, 0)
+	for ix, op := range opStatus {
+		if op == false {
+			retryBatch = append(retryBatch, messages[ix])
+		}
+	}
+
+	// make sure there are items to retry... if not return success
+	sz := len(retryBatch)
+	if sz == 0 {
+		return nil
+	}
+
+	// sleep for a while
+	time.Sleep(100 * time.Millisecond)
+
+	log.Printf("INFO: retrying %d item(s)... (%d remaining tries)", sz, retries)
+
+	opStatusRetry, err := awsi.BatchMessagePut(queue, retryBatch)
+	// if success then we are done
+	if err == nil {
+		return nil
+	}
+
+	// if not success, anything other than an error we can retry is fatal so give up
+	if err != ErrOneOrMoreOperationsUnsuccessful {
+		return err
+	}
+
+	// try again and reduce the retries count
+	return awsi.MessagePutRetry(queue, retryBatch, opStatusRetry, retries-1)
+}
+
 //
 // end of file
 //
