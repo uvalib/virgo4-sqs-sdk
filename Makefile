@@ -23,4 +23,7 @@ vet:
 
 check:
 	go get honnef.co/go/tools/cmd/staticcheck
-	cd $(PACKAGENAME); ~/go/bin/staticcheck -checks all,-ST1000,-S1002,-ST1003,-ST1020,-ST1021,-ST1022 *.go
+	go install honnef.co/go/tools/cmd/staticcheck
+	cd $(PACKAGENAME); $(HOME)/go/bin/staticcheck -checks all,-ST1000,-S1002,-ST1003,-ST1020,-ST1021,-ST1022 *.go
+	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+	cd $(PACKAGENAME); $(GOVET) -vettool=$(HOME)/go/bin/shadow
