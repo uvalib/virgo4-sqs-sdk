@@ -14,8 +14,17 @@ var warnIfRequestTakesLonger = int64(250)
 // the index value is used to differentiate requests when they are made in blocks
 func constructSend(message Message, index int) *sqs.SendMessageBatchRequestEntry {
 
+	// if we have attributes to send
+	if len( message.Attribs ) != 0 {
+		return &sqs.SendMessageBatchRequestEntry{
+			MessageAttributes: awsAttribsFromMessageAttribs(message.Attribs),
+			MessageBody:       aws.String(string(message.Payload)),
+			Id:                aws.String(strconv.Itoa(index)),
+		}
+	}
+
+	// no attributes
 	return &sqs.SendMessageBatchRequestEntry{
-		MessageAttributes: awsAttribsFromMessageAttribs(message.Attribs),
 		MessageBody:       aws.String(string(message.Payload)),
 		Id:                aws.String(strconv.Itoa(index)),
 	}
