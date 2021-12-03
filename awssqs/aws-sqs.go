@@ -64,34 +64,37 @@ type Message struct {
 
 type AWS_SQS interface {
 
-	// get a queue handle (URL) when provided a queue name
+	// QueueHandle get a queue handle (URL) when provided a queue name
 	QueueHandle(string) (QueueHandle, error)
 
-	// get a batch of messages from the specified queue. Will return on receipt of any messages
-	// without waiting and will wait no longer than the wait time if no messages are received.
+	// GetMessagesAvailable get the count of messages available in the specified queue
+	GetMessagesAvailable(queueName string) (uint, error)
+
+	// BatchMessageGet get a batch of messages from the specified queue. Will return on receipt of any
+	// messages without waiting and will wait no longer than the wait time if no messages are received.
 	BatchMessageGet(queue QueueHandle, maxMessages uint, waitTime time.Duration) ([]Message, error)
 
-	// put a batch of messages to the specified queue.
+	// BatchMessagePut put a batch of messages to the specified queue.
 	// in the event of one or more failure, the operation status array will indicate which
 	// messages were processed successfully and which were not.
 	BatchMessagePut(queue QueueHandle, messages []Message) ([]OpStatus, error)
 
-	// mark a batch of messages from the specified queue as suitable for delete. This mechanism
+	// BatchMessageDelete mark a batch of messages from the specified queue as suitable for delete. This mechanism
 	// prevents messages from being reprocessed.
 	BatchMessageDelete(queue QueueHandle, messages []Message) ([]OpStatus, error)
 
-	// retry a batched put after one or more of the operations fails.
+	// MessagePutRetry retry a batched put after one or more of the operations fails.
 	// retry the specified amount of times and return an error of after retrying one or messages
 	// has still not been sent successfully.
 	MessagePutRetry(queue QueueHandle, messages []Message, opStatus []OpStatus, retryCount uint) error
 }
 
-// our configuration structure
+// AwsSqsConfig our configuration structure
 type AwsSqsConfig struct {
 	MessageBucketName string // the name of the bucket to use for oversize messages
 }
 
-// factory for our SQS interface
+// NewAwsSqs factory for our SQS interface
 func NewAwsSqs(config AwsSqsConfig) (AWS_SQS, error) {
 
 	// mock the implementation here if necessary

@@ -468,6 +468,36 @@ func TestEmptyMessageSize(t *testing.T) {
 }
 
 //
+// GetMessagesAvailable method invariant tests
+//
+
+func TestGetMessagesAvailableHappyDay(t *testing.T) {
+
+	awssqs, err := NewAwsSqs(AwsSqsConfig{MessageBucketName: messageBucketName})
+	if err != nil {
+		t.Fatalf("%t\n", err)
+	}
+
+	_, err = awssqs.GetMessagesAvailable(goodQueueName)
+	if err != nil {
+		t.Fatalf("%t\n", err)
+	}
+}
+
+func TestGetMessagesAvailableBadName(t *testing.T) {
+
+	awssqs, err := NewAwsSqs(AwsSqsConfig{MessageBucketName: messageBucketName})
+	if err != nil {
+		t.Fatalf("%t\n", err)
+	}
+
+	_, err = awssqs.GetMessagesAvailable(badQueueName)
+	if err != ErrBadQueueName {
+		t.Fatalf("%t\n", err)
+	}
+}
+
+//
 // helper methods
 //
 

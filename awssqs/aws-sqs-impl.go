@@ -41,7 +41,7 @@ func newAwsSqs(config AwsSqsConfig) (AWS_SQS, error) {
 	return &awsSqsImpl{config, svc}, nil
 }
 
-// get a queue handle (URL) when provided a queue name
+// QueueHandle get a queue handle (URL) when provided a queue name
 func (awsi *awsSqsImpl) QueueHandle(queueName string) (QueueHandle, error) {
 
 	// get the queue URL from the name
@@ -59,7 +59,33 @@ func (awsi *awsSqsImpl) QueueHandle(queueName string) (QueueHandle, error) {
 	return QueueHandle(*result.QueueUrl), nil
 }
 
-// get a batch of messages from the specified queue. Will return on receipt of any messages
+// GetMessagesAvailable get the number of messages available in the specified queue
+func (awsi *awsSqsImpl) GetMessagesAvailable(queueName string) (uint, error) {
+
+	// get the queue handle
+	queue, err := awsi.QueueHandle(queueName)
+	if err != nil {
+		return 0, err
+	}
+
+	// and get the necessary attribute
+	q := string(queue)
+	attr := "ApproximateNumberOfMessages"
+	res, err := awsi.svc.GetQueueAttributes(&sqs.GetQueueAttributesInput{
+		QueueUrl: &q,
+		AttributeNames: []*string{
+			&attr,
+		},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	count, _ := strconv.Atoi(*res.Attributes[attr])
+	return uint(count), nil
+}
+
+// BatchMessageGet get a batch of messages from the specified queue. Will return on receipt of any messages
 // without waiting and will wait no longer than the wait time if no messages are received.
 func (awsi *awsSqsImpl) BatchMessageGet(queue QueueHandle, maxMessages uint, waitTime time.Duration) ([]Message, error) {
 
@@ -118,7 +144,7 @@ func (awsi *awsSqsImpl) BatchMessageGet(queue QueueHandle, maxMessages uint, wai
 	return messages, nil
 }
 
-// put a batch of messages to the specified queue.
+// BatchMessagePut put a batch of messages to the specified queue.
 // in the event of one or more failure, the operation status array will indicate which
 // messages were processed successfully and which were not.
 func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) ([]OpStatus, error) {
@@ -222,7 +248,7 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 	return ops, nil
 }
 
-// mark a batch of messages from the specified queue as suitable for delete. This mechanism
+// BatchMessageDelete mark a batch of messages from the specified queue as suitable for delete. This mechanism
 // prevents messages from being reprocessed.
 func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message) ([]OpStatus, error) {
 
@@ -301,7 +327,7 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 	return ops, nil
 }
 
-// retry a batched put after one or more of the operations fails.
+// MessagePutRetry retry a batched put after one or more of the operations fails.
 // retry the specified amount of times and return an error of after retrying one or messages
 // has still not been sent successfully.
 func (awsi *awsSqsImpl) MessagePutRetry(queue QueueHandle, messages []Message, opStatus []OpStatus, retries uint) error {
