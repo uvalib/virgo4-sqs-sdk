@@ -14,9 +14,6 @@ import (
 var emptyOpList = make([]OpStatus, 0)
 var emptyMessageList = make([]Message, 0)
 
-// text for a specific error cases
-var invalidAddressErrorPrefix = "InvalidAddress"
-
 // this is our interface implementation
 type awsSqsImpl struct {
 	config AwsSqsConfig
@@ -103,9 +100,9 @@ func (awsi *awsSqsImpl) BatchMessageGet(queue QueueHandle, maxMessages uint, wai
 
 	start := time.Now()
 	result, err := awsi.svc.ReceiveMessage(&sqs.ReceiveMessageInput{
-		//AttributeNames: []*string{
-		//	aws.String( sqs.QueueAttributeNameAll ),
-		//},
+		AttributeNames: []*string{
+			aws.String(sqs.QueueAttributeNameAll),
+		},
 		MessageAttributeNames: []*string{
 			aws.String(sqs.QueueAttributeNameAll),
 		},
@@ -116,7 +113,7 @@ func (awsi *awsSqsImpl) BatchMessageGet(queue QueueHandle, maxMessages uint, wai
 	elapsed := int64(time.Since(start) / time.Millisecond)
 
 	if err != nil {
-		if strings.HasPrefix(err.Error(), invalidAddressErrorPrefix) {
+		if strings.HasPrefix(err.Error(), sqs.ErrCodeQueueDoesNotExist) {
 			return emptyMessageList, ErrBadQueueHandle
 		}
 		return emptyMessageList, err
@@ -224,7 +221,7 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 	warnIfSlow(elapsed, "SendMessageBatch")
 
 	if err != nil {
-		if strings.HasPrefix(err.Error(), invalidAddressErrorPrefix) {
+		if strings.HasPrefix(err.Error(), sqs.ErrCodeQueueDoesNotExist) {
 			return emptyOpList, ErrBadQueueHandle
 		}
 		return emptyOpList, err
@@ -285,7 +282,7 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 	warnIfSlow(elapsed, "DeleteMessageBatch")
 
 	if err != nil {
-		if strings.HasPrefix(err.Error(), invalidAddressErrorPrefix) {
+		if strings.HasPrefix(err.Error(), sqs.ErrCodeQueueDoesNotExist) {
 			return emptyOpList, ErrBadQueueHandle
 		}
 		return emptyOpList, err

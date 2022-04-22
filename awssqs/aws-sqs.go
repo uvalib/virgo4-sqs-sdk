@@ -56,6 +56,8 @@ type Attributes []Attribute
 type Message struct {
 	Attribs       Attributes
 	ReceiptHandle ReceiptHandle
+	FirstSent     uint64 // epoch time (http://en.wikipedia.org/wiki/Unix_time)
+	FirstReceived uint64 // epoch time (http://en.wikipedia.org/wiki/Unix_time)
 	Payload       []byte
 
 	// used by the implementation

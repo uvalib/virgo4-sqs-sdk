@@ -15,7 +15,7 @@ var warnIfRequestTakesLonger = int64(250)
 func constructSend(message Message, index int) *sqs.SendMessageBatchRequestEntry {
 
 	// if we have attributes to send
-	if len( message.Attribs ) != 0 {
+	if len(message.Attribs) != 0 {
 		return &sqs.SendMessageBatchRequestEntry{
 			MessageAttributes: awsAttribsFromMessageAttribs(message.Attribs),
 			MessageBody:       aws.String(string(message.Payload)),
@@ -25,8 +25,8 @@ func constructSend(message Message, index int) *sqs.SendMessageBatchRequestEntry
 
 	// no attributes
 	return &sqs.SendMessageBatchRequestEntry{
-		MessageBody:       aws.String(string(message.Payload)),
-		Id:                aws.String(strconv.Itoa(index)),
+		MessageBody: aws.String(string(message.Payload)),
+		Id:          aws.String(strconv.Itoa(index)),
 	}
 }
 

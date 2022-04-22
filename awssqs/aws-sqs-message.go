@@ -42,6 +42,16 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 	message.Attribs = makeAttributes(awsMessage.MessageAttributes)
 	message.Payload = []byte(*awsMessage.Body)
 
+	// extract other attributes to the specific fields
+	v, ok := awsMessage.Attributes["SentTimestamp"]
+	if ok == true {
+		message.FirstSent, _ = strconv.ParseUint(*v, 10, 64)
+	}
+	v, ok = awsMessage.Attributes["ApproximateFirstReceiveTimestamp"]
+	if ok == true {
+		message.FirstReceived, _ = strconv.ParseUint(*v, 10, 64)
+	}
+
 	// check to see if this is a special 'oversize' message which stores the payload in S3, if it is, do the necessary processing
 	s3size, found := message.GetAttribute(oversizeMessageAttributeName)
 	if found == true {
