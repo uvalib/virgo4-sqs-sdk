@@ -130,14 +130,25 @@ func (awsi *awsSqsImpl) BatchMessageGet(queue QueueHandle, maxMessages uint, wai
 
 	// build the response message set from the returned AWS structures
 	messages := make([]Message, 0, sz)
+	var returnErr error
+	wasError := false
 	for _, m := range result.Messages {
 		m, err := MakeMessage(*m)
-		if err != nil {
-			return emptyMessageList, err
+		if err == nil {
+			messages = append(messages, *m)
+		} else {
+			// typically this error case is when we attempt to decode a 'large' message but the appropriate
+			// payload is unavailable in S3
+			log.Printf("WARNING: ignoring oversize message with missing payload")
+			wasError = true
+			returnErr = err
+			//return emptyMessageList, err
 		}
-		messages = append(messages, *m)
 	}
 
+	if wasError == true {
+		return messages, returnErr
+	}
 	return messages, nil
 }
 
