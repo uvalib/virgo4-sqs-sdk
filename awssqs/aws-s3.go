@@ -2,7 +2,6 @@ package awssqs
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"time"
 
@@ -84,7 +83,8 @@ func s3Get(bucket string, key string, expectedSize int) ([]byte, error) {
 
 	// we validate the expected file size against the actually downloaded size
 	if int64(expectedSize) != downloadSize {
-		return nil, fmt.Errorf("download failure. expected %d bytes, received %d bytes", expectedSize, downloadSize)
+		log.Printf("WARNING: while downloading s3://%s/%s... expected %d bytes, received %d bytes", bucket, key, expectedSize, downloadSize)
+		//return nil, fmt.Errorf("download failure. expected %d bytes, received %d bytes", expectedSize, downloadSize)
 	}
 
 	duration := time.Since(start)
