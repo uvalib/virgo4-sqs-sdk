@@ -61,7 +61,8 @@ type Message struct {
 	Payload       []byte
 
 	// used by the implementation
-	oversize bool
+	oversize   bool // this is an oversize message and is handled differently
+	incomplete bool // this message is incomplete and may be handled differently
 }
 
 type AWS_SQS interface {

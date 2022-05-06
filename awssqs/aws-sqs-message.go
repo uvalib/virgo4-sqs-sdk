@@ -58,37 +58,49 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 
 		//log.Printf( "INFO: constructing oversize message" )
 
-		// use this later
-		sz, _ := strconv.Atoi(s3size)
-
-		// mark as oversize and extract the S3 marker from the payload which has bucket and key information
-		message.oversize = true
+		// extract the payload key from the existing payload
 		bucket, key, err := message.decodeS3MarkerInformation(message.Payload)
 		if err != nil {
-			return nil, err
+			// return the incomplete message and the error
+			message.incomplete = true
+			return message, err
 		}
 
-		// construct the new receipt handle... we overload it with bucket and key information
-		newReceiptHandle := message.makeEnhancedReceiptHandle(bucket, key, message.ReceiptHandle)
+		// use this later
+		sz, err := strconv.Atoi(s3size)
+		if err != nil {
+			// return the incomplete message and the error
+			message.incomplete = true
+			return message, err
+		}
 
 		// get the actual message contents from S3
 		contents, err := s3Get(bucket, key, sz)
 		if err != nil {
-			return nil, err
+			// return the incomplete message and the error
+			message.incomplete = true
+			return message, err
 		}
 
 		// ensure the actual size of the S3 object we read matches the reported size
 		if len(contents) != sz {
-			return nil, ErrMismatchedContentsSize
+			// return the incomplete message and the error
+			message.incomplete = true
+			return message, ErrMismatchedContentsSize
 		}
+
+		// mark the message as oversize
+		message.oversize = true
+
+		// construct the new receipt handle... we overload it with bucket and key information
+		newReceiptHandle := message.makeEnhancedReceiptHandle(bucket, key, message.ReceiptHandle)
+		// and save the 'enhanced' receipt handle
+		message.ReceiptHandle = newReceiptHandle
 
 		// update the contents of the message (overwriting the S3 marker object there)
 		message.Payload = contents
 
-		// save the 'enhanced' receipt handle
-		message.ReceiptHandle = newReceiptHandle
-
-		// finally, delete the 'marker' attribute we use for indicating this is a special type of message
+		// finally, remove the 'marker' attribute we use for indicating this is a special type of message
 		message.deleteAttribute(oversizeMessageAttributeName)
 	}
 
