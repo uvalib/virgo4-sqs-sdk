@@ -61,6 +61,7 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 		// extract the payload key from the existing payload
 		bucket, key, err := message.decodeS3MarkerInformation(message.Payload)
 		if err != nil {
+			// errors logged in decodeS3MarkerInformation function
 			// return the incomplete message and the error
 			message.incomplete = true
 			return message, err
@@ -69,6 +70,7 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 		// use this later
 		sz, err := strconv.Atoi(s3size)
 		if err != nil {
+			log.Printf("WARNING: size conversion error (%s)", err.Error())
 			// return the incomplete message and the error
 			message.incomplete = true
 			return message, err
@@ -77,6 +79,7 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 		// get the actual message contents from S3
 		contents, err := s3Get(bucket, key, sz)
 		if err != nil {
+			log.Printf("WARNING: missing/unavailable message payload (%s)", err.Error())
 			// return the incomplete message and the error
 			message.incomplete = true
 			return message, err
@@ -84,6 +87,7 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 
 		// ensure the actual size of the S3 object we read matches the reported size
 		if len(contents) != sz {
+			log.Printf("WARNING: unexpected message payload size. Expected %d, actual %d", sz, len(contents))
 			// return the incomplete message and the error
 			message.incomplete = true
 			return message, ErrMismatchedContentsSize

@@ -133,19 +133,18 @@ func (awsi *awsSqsImpl) BatchMessageGet(queue QueueHandle, maxMessages uint, wai
 	var returnErr error
 	wasError := false
 	for _, m := range result.Messages {
+		// make a new message and append to the list
 		m, err := MakeMessage(*m)
-		if err == nil {
-			messages = append(messages, *m)
-		} else {
-			// typically this error case is when we attempt to decode a 'large' message but the appropriate
-			// payload is unavailable in S3
-			log.Printf("WARNING: ignoring oversize message with missing payload")
+		messages = append(messages, *m)
+		if err != nil {
+			// sometimes we have incomplete messages so capture that info here...
+			// incomplete messages are marked as such so can be handled elsewhere
 			wasError = true
 			returnErr = err
-			//return emptyMessageList, err
 		}
 	}
 
+	// if one (or more) error occurred, return it with the list of messages
 	if wasError == true {
 		return messages, returnErr
 	}
@@ -305,7 +304,7 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 		if converr == nil && uint(id) < sz {
 			ops[id] = false
 		} else {
-			log.Printf("WARNING: Suspect ID %s in delete response", *f.Id)
+			log.Printf("WARNING: suspect ID %s in delete response", *f.Id)
 		}
 	}
 
@@ -321,7 +320,7 @@ func (awsi *awsSqsImpl) BatchMessageDelete(queue QueueHandle, messages []Message
 				}
 			}
 		} else {
-			log.Printf("WARNING: Suspect ID %s in delete response", *f.Id)
+			log.Printf("WARNING: suspect ID %s in delete response", *f.Id)
 		}
 	}
 
