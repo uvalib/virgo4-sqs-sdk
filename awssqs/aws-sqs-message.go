@@ -58,6 +58,10 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 
 		//log.Printf( "INFO: constructing oversize message" )
 
+		// remove the 'marker' attribute we use for indicating this is a special type of message,
+		// we won't need it again
+		message.deleteAttribute(oversizeMessageAttributeName)
+
 		// extract the payload key from the existing payload
 		bucket, key, err := message.decodeS3MarkerInformation(message.Payload)
 		if err != nil {
@@ -97,15 +101,12 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 		message.oversize = true
 
 		// construct the new receipt handle... we overload it with bucket and key information
-		newReceiptHandle := message.makeEnhancedReceiptHandle(bucket, key, message.ReceiptHandle)
 		// and save the 'enhanced' receipt handle
+		newReceiptHandle := message.makeEnhancedReceiptHandle(bucket, key, message.ReceiptHandle)
 		message.ReceiptHandle = newReceiptHandle
 
 		// update the contents of the message (overwriting the S3 marker object there)
 		message.Payload = contents
-
-		// finally, remove the 'marker' attribute we use for indicating this is a special type of message
-		message.deleteAttribute(oversizeMessageAttributeName)
 	}
 
 	return message, nil
@@ -146,14 +147,14 @@ func (m *Message) IsOversize() bool {
 // if this is an oversize  message, delete the bucket contents
 func (m *Message) DeleteOversizeMessage() error {
 
-	// if this is not a oversize message, then ignore
+	// if this is not an oversize message, then ignore
 	if m.oversize == false {
 		return nil
 	}
 
 	//log.Printf( "INFO: deleting oversize message" )
 
-	// a oversize 'large' messages encodes the bucket attributes in the receipt handle
+	// an oversize 'large' messages encodes the bucket attributes in the receipt handle
 	bucket, key := m.getBucketAttributes(m.ReceiptHandle)
 	if bucket != "" && key != "" {
 		return s3Delete(bucket, key)
@@ -164,7 +165,7 @@ func (m *Message) DeleteOversizeMessage() error {
 
 func (m *Message) ConvertToOversizeMessage(bucket string) error {
 
-	// if this is already marked as a oversize message, then ignore
+	// if this is already marked as an oversize message, then ignore
 	if m.oversize == true {
 		return nil
 	}
