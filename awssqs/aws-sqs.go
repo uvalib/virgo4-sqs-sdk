@@ -59,10 +59,10 @@ type Message struct {
 	FirstSent     uint64 // epoch time (http://en.wikipedia.org/wiki/Unix_time)
 	FirstReceived uint64 // epoch time (http://en.wikipedia.org/wiki/Unix_time)
 	Payload       []byte
+	Incomplete    bool // this message is incomplete and may be handled differently
 
 	// used by the implementation
-	oversize   bool // this is an oversize message and is handled differently
-	incomplete bool // this message is incomplete and may be handled differently
+	oversize bool // this is an oversize message and is handled differently
 }
 
 type AWS_SQS interface {

@@ -67,7 +67,7 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 		if err != nil {
 			// errors logged in decodeS3MarkerInformation function
 			// return the incomplete message and the error
-			message.incomplete = true
+			message.Incomplete = true
 			return message, err
 		}
 
@@ -76,7 +76,7 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 		if err != nil {
 			log.Printf("WARNING: size conversion error (%s)", err.Error())
 			// return the incomplete message and the error
-			message.incomplete = true
+			message.Incomplete = true
 			return message, err
 		}
 
@@ -85,7 +85,7 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 		if err != nil {
 			log.Printf("WARNING: missing/unavailable message payload (%s)", err.Error())
 			// return the incomplete message and the error
-			message.incomplete = true
+			message.Incomplete = true
 			return message, err
 		}
 
@@ -93,7 +93,7 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 		if len(contents) != sz {
 			log.Printf("WARNING: unexpected message payload size. Expected %d, actual %d", sz, len(contents))
 			// return the incomplete message and the error
-			message.incomplete = true
+			message.Incomplete = true
 			return message, ErrMismatchedContentsSize
 		}
 
