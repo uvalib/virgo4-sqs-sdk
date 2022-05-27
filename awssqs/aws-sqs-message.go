@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/google/uuid"
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/uvalib/uva-aws-s3-sdk/uva-s3"
 )
 
 // support for large messages (using S3)
@@ -31,6 +34,13 @@ var s3MarkerTag = "com.amazon.sqs.javamessaging.MessageS3Pointer"
 //
 //
 type S3MarkerPayload [2]interface{}
+
+var s3Svc uva_s3.UvaS3
+
+func init() {
+	// dont really like ignoring the error here...
+	s3Svc, _ = uva_s3.NewUvaS3(uva_s3.UvaS3Config{Logging: true})
+}
 
 //
 // our message factory based on a message from AWS
@@ -81,7 +91,8 @@ func MakeMessage(awsMessage sqs.Message) (*Message, error) {
 		}
 
 		// get the actual message contents from S3
-		contents, err := s3Get(bucket, key, sz)
+		o := uva_s3.NewUvaS3Object(bucket, key)
+		contents, err := s3Svc.GetToBuffer(o)
 		if err != nil {
 			log.Printf("WARNING: missing/unavailable message payload (%s)", err.Error())
 			// return the incomplete message and the error
@@ -157,7 +168,8 @@ func (m *Message) DeleteOversizeMessage() error {
 	// an oversize 'large' messages encodes the bucket attributes in the receipt handle
 	bucket, key := m.getBucketAttributes(m.ReceiptHandle)
 	if bucket != "" && key != "" {
-		return s3Delete(bucket, key)
+		o := uva_s3.NewUvaS3Object(bucket, key)
+		return s3Svc.DeleteObject(o)
 	}
 
 	return ErrBadReceiptHandle
@@ -173,7 +185,9 @@ func (m *Message) ConvertToOversizeMessage(bucket string) error {
 	//log.Printf( "INFO: converting oversize message" )
 
 	// add the contents to S3
-	key, err := s3Add(bucket, m.Payload)
+	key := uuid.New().String()
+	o := uva_s3.NewUvaS3Object(bucket, key)
+	err := s3Svc.PutFromBuffer(o, m.Payload)
 	if err != nil {
 		return err
 	}
