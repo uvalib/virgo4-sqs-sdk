@@ -210,13 +210,17 @@ func (awsi *awsSqsImpl) BatchMessagePut(queue QueueHandle, messages []Message) (
 	}
 
 	q := string(queue)
+	mGroup := ""
+	if strings.HasSuffix(q, "fifo") == true {
+		mGroup = "default"
+	}
 
 	batch := make([]*sqs.SendMessageBatchRequestEntry, 0, sz)
 
 	// make a batch of messages that we successfully processed so far
 	for ix, m := range messages {
 		if ops[ix] == true {
-			batch = append(batch, constructSend(m, ix))
+			batch = append(batch, constructSend(m, ix, mGroup))
 		}
 	}
 
